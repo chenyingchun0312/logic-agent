@@ -1,0 +1,124 @@
+diff --git a/libsigrok4DSL/hardware/DSL/dslogic.c b/libsigrok4DSL/hardware/DSL/dslogic.c
+index 3906acc..57d953e 100644
+--- a/libsigrok4DSL/hardware/DSL/dslogic.c
++++ b/libsigrok4DSL/hardware/DSL/dslogic.c
+@@ -309,7 +309,7 @@ static GSList *scan(GSList *options)
+ 	else
+ 		conn_devices = NULL;
+ 
+-    /* Find all DSLogic compatible devices and upload firmware to them. */
++    /* Find all DSLogic compatible devices. Firmware is never uploaded here. */
+ 	devices = NULL;
+     devlist = NULL;
+     
+@@ -439,31 +439,17 @@ static GSList *scan(GSList *options)
+             num++;   
+ 		}
+         else {
+-            char *firmware;
+-            char *res_path = DS_RES_PATH;
+-            if (!(firmware = malloc(strlen(res_path)+strlen(prof->firmware) + 5))) {
+-                sr_err("Firmware path malloc error!");
+-                break;
+-            }
+-            strcpy(firmware, res_path);
+-            strcat(firmware, "/");
+-            strcat(firmware, prof->firmware);
+-
+-            sr_info("Install firmware bin file, device:\"%s\", file:\"%s\"", prof->model, firmware);
+-
+-            if (ezusb_upload_firmware(device_handle, USB_CONFIGURATION, firmware) != SR_OK){
+-                sr_err("Firmware upload failed for device %s.", prof->model);
+-            }
+-
+-            free(firmware);
+-
+-            libusb_unref_device(device_handle);
+-#ifdef _WIN32
+-            libusb_unref_device(device_handle);
+-#endif
+-
+-            sr_info("Waitting for device reconnect, name:\"%s\"", prof->model);
+-		}
++            /* An explicit, model-checked install is required. Scanning is
++             * deliberately read-only: PID 0x0001 is shared with the legacy
++             * DSLogic, so an automatic upload could flash the wrong model. */
++            sr_warn("DSLogic device \"%s\" is in bootloader mode; "
++                    "refusing automatic firmware upload from scan()",
++                    prof->model);
++            /* libusb_free_device_list(devlist, 0) below releases the list's
++             * own reference. Do not unref here: a second unref makes the
++             * following free corrupt the reference count and abort inside
++             * libusb on Windows. */
++        }
+ 	}
+ 
+ 	libusb_free_device_list(devlist, 0);
+@@ -1316,10 +1302,17 @@ static void remove_sources(struct DSL_context *devc)
+ {
+     int i;
+     sr_info("%s: remove fds from polling", __func__);
++    /* [dslab patch] The Windows libusb fallback uses a single fd=-1
++     * source, whose sentinel would otherwise make the loop below stop
++     * before removing it. */
++    if (devc->usbfd && devc->usbfd[0] == -1)
++        sr_source_remove(-1);
+     /* Remove fds from polling. */
++    else if (devc->usbfd)
+     for (i = 0; devc->usbfd[i] != -1; i++)
+         sr_source_remove(devc->usbfd[i]);
+     g_free(devc->usbfd);
++    devc->usbfd = NULL;
+ }
+ 
+ static void report_overflow(struct DSL_context *devc)
+@@ -1354,6 +1347,11 @@ static int receive_data(int fd, int revents, const struct sr_dev_inst *sdi)
+     tv.tv_sec = tv.tv_usec = 0;
+     libusb_handle_events_timeout_completed(drvc->sr_ctx->libusb_ctx, &tv, &completed);
+ 
++    /* [dslab patch] libusb >= 1.0.24 on Windows has no pollfds; the
++     * session is driven by a dummy fd=-1 source. Do not spin at 100% CPU. */
++    if (fd < 0)
++        g_usleep(500);
++
+     if (devc->trf_completed)
+         devc->empty_poll_count = 0;
+     else
+@@ -1487,20 +1485,31 @@ static int dev_acquisition_start(struct sr_dev_inst *sdi, void *cb_data)
+ 
+     /* setup callback function for data transfer */
+     lupfd = libusb_get_pollfds(drvc->sr_ctx->libusb_ctx);
+-    for (i = 0; lupfd[i]; i++);
++    /* [dslab patch] The Windows backend since libusb 1.0.24 returns NULL
++     * here. Fall back to one fd=-1 source so receive_data() still pumps
++     * libusb events, instead of dereferencing NULL. */
++    if (lupfd) {
++        for (i = 0; lupfd[i]; i++);
++    } else {
++        i = 0;
++    }
+ 
+     if (!(devc->usbfd = malloc(sizeof(struct libusb_pollfd) * (i + 1)))){
+         sr_err("%s,ERROR:failed to alloc memory.", __func__);
+     	return SR_ERR;
+     }
+ 
+-    for (i = 0; lupfd[i]; i++) {
+-        sr_source_add(lupfd[i]->fd, lupfd[i]->events,
+-                  dsl_get_timeout(sdi), receive_data, sdi);
+-        devc->usbfd[i] = lupfd[i]->fd;
++    if (lupfd) {
++        for (i = 0; lupfd[i]; i++) {
++            sr_source_add(lupfd[i]->fd, lupfd[i]->events,
++                      dsl_get_timeout(sdi), receive_data, sdi);
++            devc->usbfd[i] = lupfd[i]->fd;
++        }
++        free(lupfd);
++    } else {
++        sr_source_add(-1, 0, dsl_get_timeout(sdi), receive_data, sdi);
+     }
+     devc->usbfd[i] = -1;
+-    free(lupfd);
+ 
+     wr_cmd.header.dest = DSL_CTL_START;
+     wr_cmd.header.size = 0;

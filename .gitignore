@@ -1,0 +1,36 @@
+# Fetched dependencies and downloads (scripts/bootstrap.ps1)
+.deps/
+.cache/
+.venv/
+
+# Build and release output (scripts/build.ps1, scripts/release.ps1)
+build/
+dslab/build/
+dist/
+
+# Python / test output
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Runtime output of dslab / logic-agent
+.logic_agent_data/
+runs/
+data/
+
+# Vendor binaries are fetched, never committed
+*.fw
+*.bin
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Legacy local folders from before bootstrap.ps1 (safe to delete)
+.toolchains/
+.local/
+dsview-132/
+release-out/

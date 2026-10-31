@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  python:
+    # Pure-Python tests. Decoder tests skip here because sigrok-cli is not
+    # redistributed in CI yet; run `scripts/test.ps1 -RequireDecoders` locally.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -q -rs -p no:cacheprovider --basetemp "${{ runner.temp }}\pytest"
+
+  dslab:
+    # Clean-room build of dslab.exe: fetch DSView, apply patches, build with MSYS2 UCRT64.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-glib2
+            mingw-w64-ucrt-x86_64-libusb
+            mingw-w64-ucrt-x86_64-zlib
+      - shell: pwsh
+        run: |
+          pwsh scripts/bootstrap.ps1 -Msys2Root '${{ steps.msys2.outputs.msys2-location }}' -SkipSigrok -SkipPythonEmbed -SkipVenv
+          pwsh scripts/build.ps1 -Msys2Root '${{ steps.msys2.outputs.msys2-location }}'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dslab-win-x64
+          path: |
+            dslab/build/dslab.exe
+            dslab/build/*.dll

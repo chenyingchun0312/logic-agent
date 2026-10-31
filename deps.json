@@ -1,0 +1,42 @@
+{
+  "_comment": "Pinned third-party inputs for bootstrap.ps1 and release.ps1. Change a version here, then update sha256 and run the full release gate.",
+  "dsview": {
+    "repo": "https://github.com/DreamSourceLab/DSView.git",
+    "commit": "03131dd261f08f84262c0172fd051b16cc3bb586",
+    "tag": "v1.3.2",
+    "patch": "patches/dsview-v1.3.2-dslab.patch",
+    "license": "GPL-3.0-or-later (libsigrok4DSL); DSView/res/*.bin under DSView/res/license.txt (MIT)"
+  },
+  "firmware": {
+    "name": "DSLogicPlus.fw",
+    "url": "https://raw.githubusercontent.com/DreamSourceLab/DSView/f17c612cb1d600a50ca4cdf804967770364b4f08/DSView/res/DSLogicPlus.fw",
+    "license_url": "https://raw.githubusercontent.com/DreamSourceLab/DSView/f17c612cb1d600a50ca4cdf804967770364b4f08/DSView/res/license.txt",
+    "sha256": "90bb9e558767e9eec77749bad905c8bfa172613984d15c6bc10d51d06ebd3080",
+    "license_sha256": "60b7bd3d057538cc7fb49f735ee837ba6774d7d5a403f8c3c4bc28fa42727246",
+    "bytes": 8120
+  },
+  "python_embed": {
+    "version": "3.13.17",
+    "url": "https://www.python.org/ftp/python/3.13.17/python-3.13.17-embed-amd64.zip",
+    "sha256": "9e35319bffedab8b36ad44d8f377cb4f1733bcec257a0b6d04d94f01486ddb38",
+    "_comment": "Pinned on first download (python.org does not list this file in windows-<ver>.json)."
+  },
+  "sigrok_cli": {
+    "version": "0.8.0-git-f44dd91",
+    "url": "",
+    "sha256": "",
+    "_comment": "Repackaged minimal runtime made by scripts/pack-sigrok-cli.ps1 and uploaded as a GitHub release asset. Leave url empty to require a local sigrok-cli (ZEPHYR_ENV_HOME\\sigrok-cli or -SigrokRoot)."
+  },
+  "msys2": {
+    "installer_url": "https://repo.msys2.org/distrib/msys2-base-x86_64-latest.sfx.exe",
+    "packages": [
+      "mingw-w64-ucrt-x86_64-gcc",
+      "mingw-w64-ucrt-x86_64-cmake",
+      "mingw-w64-ucrt-x86_64-ninja",
+      "mingw-w64-ucrt-x86_64-pkgconf",
+      "mingw-w64-ucrt-x86_64-glib2",
+      "mingw-w64-ucrt-x86_64-libusb",
+      "mingw-w64-ucrt-x86_64-zlib"
+    ]
+  }
+}
