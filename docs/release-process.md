@@ -50,7 +50,7 @@ pwsh scripts/release.ps1
 8. 压缩为 `dist/logic-agent-dslogic-plus-v<版本>-win-x64.zip`，生成 `.sha256` 和 `.json`；
 9. 解压到新目录再校验一次。
 
-驱动：打包机装了 DSView 时自动带上 `C:\Program Files\DSView\Drivers`，也可以用 `-DriverDir`、`-Zadig` 指定，或用 `-NoDriver` 不带。工作区有未提交改动时，`VERSION.txt` 的 commit 会带 `-dirty` 后缀，这样的包不能对外发布。
+驱动：打包机装了 DSView 时自动带上 `C:\Program Files\DSView\Drivers`，也可以用 `-DriverDir`、`-Zadig` 指定，或用 `-NoDriver` 什么都不带。**GitHub 公开 Release 用 `-NoDsviewDriver -Zadig <zadig.exe>`**：DreamSourceLab 驱动包的再分发条款不明确，只随内部包分发。工作区有未提交改动时，`VERSION.txt` 的 commit 会带 `-dirty` 后缀，这样的包不能对外发布。
 
 ## 5. 硬件门禁（手动）
 

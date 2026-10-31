@@ -18,10 +18,13 @@
 param(
     [string]$Version = '',
     [string]$OutDir = '',
-    # DreamSourceLab WinUSB driver folder (contains dpinst-amd64.exe). Optional.
+    # DreamSourceLab WinUSB driver folder (contains dpinst-amd64.exe). Optional;
+    # auto-detected from a local DSView install unless -NoDsviewDriver.
     [string]$DriverDir = '',
-    # Optional Zadig executable to ship as a driver fallback.
+    # Zadig executable (GPL-3.0) shipped as the driver installer fallback.
     [string]$Zadig = '',
+    # Leave out the DreamSourceLab driver package (use for public releases).
+    [switch]$NoDsviewDriver,
     [string]$BundleName = 'logic-agent',
     [switch]$NoDriver,
     [switch]$SkipTests,
@@ -48,12 +51,13 @@ $required = [ordered]@{
 }
 foreach ($k in $required.Keys) { if (-not (Test-Path -LiteralPath $required[$k])) { throw "missing $k`: $($required[$k])" } }
 if ((Get-Sha256 $p.Firmware) -ne $deps.firmware.sha256) { throw 'firmware hash does not match deps.json' }
+if ($NoDsviewDriver) { $DriverDir = '' }
 if (-not $NoDriver) {
-    if (-not $DriverDir) {
+    if (-not $DriverDir -and -not $NoDsviewDriver) {
         $DriverDir = @($env:DSVIEW_DRIVER_DIR, 'C:\Program Files\DSView\Drivers') |
             Where-Object { $_ -and (Test-Path -LiteralPath (Join-Path $_ 'dpinst-amd64.exe')) } | Select-Object -First 1
     }
-    if (-not $DriverDir) { Write-Warning 'WinUSB driver not found (install DSView or pass -DriverDir); bundle will rely on Zadig/DSView for drivers' }
+    if (-not $DriverDir -and -not $NoDsviewDriver) { Write-Warning 'WinUSB driver not found (install DSView or pass -DriverDir); bundle will rely on Zadig/DSView for drivers' }
     if (-not $Zadig -and $env:ZADIG_EXE) { $Zadig = $env:ZADIG_EXE }
 }
 Sync-DecoderOverlay
@@ -155,7 +159,7 @@ Python         : $($deps.python_embed.version) (embeddable)
 Protocols      : $protocolCount public entries
 Firmware       : firmware/DSLogicPlus.fw ($($deps.firmware.bytes) bytes)
 Firmware SHA256: $($deps.firmware.sha256)
-Driver bundled : $(if ($DriverDir -and -not $NoDriver) { 'yes' } else { 'no' })
+Driver bundled : $(if ($NoDriver) { 'no' } elseif ($DriverDir) { 'DreamSourceLab WinUSB package + Zadig' } elseif ($Zadig) { 'Zadig only' } else { 'no' })
 Verification   : checksums.sha256 (all packaged files)
 Notes          : Normal devices do not need a firmware write.
                  Firmware recovery is only for USB 2A0E:0001 bootloader.

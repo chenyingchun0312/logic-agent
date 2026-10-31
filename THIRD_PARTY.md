@@ -21,11 +21,12 @@
 | glib、libusb、zlib、pcre2、iconv、intl、winpthread | MSYS2 UCRT64 | https://packages.msys2.org | LGPL-2.1+ / BSD / zlib 等 | `runtime/bin/*.dll`（动态链接，可替换） |
 | sigrok-cli + libsigrokdecode 解码器 | 0.8.0-git-f44dd91 | https://sigrok.org | GPL-3.0+ / GPL-2.0+ | `runtime/bin/sigrok-cli.exe`、`runtime/decoders/` |
 | CPython embeddable | 3.13.17 | https://www.python.org | PSF License | `runtime/python/` |
-| DreamSourceLab WinUSB 驱动 | DSView 安装包自带 | 本机 DSView 安装目录 | 厂商签名驱动 | `driver/`（可选，仅当打包机有 DSView 时） |
+| Zadig | 打包时提供 | https://zadig.akeo.ie | GPL-3.0 | `driver/zadig.exe` |
+| DreamSourceLab WinUSB 驱动 | DSView 安装包自带 | 本机 DSView 安装目录 | 厂商签名驱动，再分发条款未明确 | `driver/DSView-Drivers/`（仅内部包；公开 Release 用 `-NoDsviewDriver` 排除） |
 
 ## 对外分发的义务
 
 - 发布包含 GPL 二进制（`dslab.exe`、`sigrok-cli.exe`、解码器）。随包提供 `runtime/licenses/`，并在发布说明中给出对应源码位置：本仓库的 tag 加上 `deps.json` 中的上游提交。
 - 动态链接的 LGPL 库以独立 DLL 形式提供，用户可以替换。
 - 固件和 bitstream 必须与 DreamSourceLab 的 `license.txt` 一起分发。
-- WinUSB 驱动只在打包机安装了 DSView 时才放进包内。公开发布前请确认是否随包分发；不放时，用户可以安装 DSView 或用 Zadig 安装 WinUSB。
+- DreamSourceLab 的 WinUSB 驱动包只出现在 DSView 官方安装包里，再分发条款不明确，公开 Release 不带它（`release.ps1 -NoDsviewDriver`），只带 Zadig。用户也可以安装 DSView 来获得驱动。

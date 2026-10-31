@@ -5,6 +5,16 @@
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-31
+
+仅打包变化，`logic_agent` 和 `dslab` 代码与 1.1.0 相同。
+
+### Changed
+- `release.ps1 -NoDsviewDriver`：公开 Release 不带 DreamSourceLab 驱动包，只带 Zadig；`INSTALL-DRIVER.cmd` 找不到驱动包时自动改用 Zadig。
+- 公开发布包的 `VERSION.txt` 会写明随包带了哪种驱动。
+
+## [1.1.0] - 2026-10-31
+
 ### Changed
 - 构建与发布改为可复现：`scripts/bootstrap.ps1` 按 `deps.json` 固定版本和 SHA-256 拉取 DSView 源码、固件、sigrok-cli、嵌入式 Python 和 MSYS2；`scripts/release.ps1` 只用本仓库和 `.deps/` 组装发布包，不再依赖本机的旧交付目录。
 - DSView 源码从仓库根目录的 `dsview-132/` 移到 `.deps/dsview`，构建时自动应用 `patches/`。

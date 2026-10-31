@@ -16,7 +16,7 @@ USB\VID_2A0E&PID_0020
 2. 双击 `INSTALL-DRIVER.cmd`，允许 UAC。
 3. 运行 `CHECK.cmd`。
 
-脚本调用的是随包的 DreamSourceLab WinUSB 驱动安装程序 `driver\DSView-Drivers\dpinst-amd64.exe`，由微软签名的安装组件完成安装。
+包里有 `driver\DSView-Drivers\` 时，脚本调用 DreamSourceLab 的 WinUSB 驱动安装程序 `dpinst-amd64.exe`。GitHub 公开发布的包不带这个驱动包，脚本会自动打开随包的 Zadig，按方法 B 操作即可。
 
 ## 方法 B：Zadig
 
@@ -26,7 +26,7 @@ USB\VID_2A0E&PID_0020
 INSTALL-DRIVER.cmd -OpenZadig
 ```
 
-在 Zadig 中选择 DSLogic 设备，驱动选 `WinUSB`，点击 `Install Driver`。不要选择无关的 USB 设备。
+在 Zadig 中勾选 `Options → List All Devices`，选择 USB ID 为 `2A0E 0020` 的 DSLogic 设备，驱动选 `WinUSB`，点击 `Install Driver`。不要选择无关的 USB 设备。
 
 ## 方法 C：官方 DSView
 
