@@ -30,6 +30,13 @@ class BackendUnavailableError(LogicAgentError):
     code = "backend_unavailable"
 
 
+class ConfigError(LogicAgentError):
+    """A client config file exists but cannot be parsed or merged safely."""
+
+    code = "config_error"
+
+
+
 class UnsupportedFeatureError(LogicAgentError):
     code = "unsupported_feature"
 

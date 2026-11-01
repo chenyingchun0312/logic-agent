@@ -53,6 +53,14 @@ Python-only changes need just `.venv` and `scripts/test.ps1`; no C build.
 3. If the decoder comes from DSView, adapt it under `decoders_ext/<id>/` with a `PORTING.md`.
 4. Update `docs/protocol-decoding.md`.
 
+## Adding an MCP client
+
+1. Add a `ClientSpec` in `logic_agent/mcp_clients.py`: config path template, container key
+   (`mcpServers` / `servers` / TOML table), detection paths, and any extra fields that client needs.
+2. Add a test in `tests/test_mcp_clients.py` that installs and removes the entry in a throwaway
+   home. Never read or write the real user config from a test.
+3. Document the path in `docs/mcp-clients.md`.
+
 ## Adding a backend (e.g. Saleae)
 
 Implement the protocol in `logic_agent/backends/base.py`, return `CapturedSignal`, register it in

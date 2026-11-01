@@ -11,7 +11,8 @@
 | 设备可见但采集失败 | DSView 是否占用 | 关闭 DSView/PulseView，重新运行 `CHECK.cmd` |
 | 采集全为低电平 | 探针/接地/电压 | 用 `SELF-TEST.cmd` 区分采集链路与外部接线 |
 | 协议无事件 | 通道角色、采样率、CS | 先 `analyze_window` 看边沿，再按 `docs\PROTOCOLS.md` 映射 |
-| MCP 客户端启动失败 | command/args 路径 | 用 `cmd /c` 调 `MCP.cmd`，路径使用正斜杠 |
+| MCP 客户端启动失败 | command/args 路径 | 重新运行 `INSTALL-MCP.cmd`，它写入包内解释器的绝对路径并验证启动；`--dry-run` 可只打印配置 |
+| 客户端列表里没有 `logic-analyzer` | 配置写到了别的文件，或客户端没重启 | `INSTALL-MCP.cmd --list` 看实际路径；Claude Desktop 要连托盘图标一起退出 |
 | `runtime DLL` 缺失 | 解压不完整/杀软隔离 | 重新解压，检查杀软隔离区 |
 | 红灯 | 是否待机 | DSView 未启动时红灯不是故障码；先看 `FIRMWARE-STATUS.cmd` |
 

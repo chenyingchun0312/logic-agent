@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .decoders import supported_protocols
 from .errors import LogicAgentError
+from .mcp_clients import SCOPES, Locations, format_clients, format_report, install, list_clients
 from .mcp_server import main as mcp_main
 from .service import LogicAgentService
 
@@ -22,6 +23,20 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("mcp", help="Run the MCP stdio server")
+    setup = sub.add_parser(
+        "mcp-install",
+        help="Add this MCP server to Codex, Claude Code, Copilot, Cursor, Kiro, Windsurf, Cline",
+    )
+    setup.add_argument("clients", nargs="*", metavar="CLIENT", help="Client ids (default: every detected agent); --list shows them")
+    setup.add_argument("--list", action="store_true", help="Show the supported agents and where their config file lives")
+    setup.add_argument("--all", action="store_true", help="Also configure agents that were not detected")
+    setup.add_argument("--remove", action="store_true", help="Remove the server instead of adding it")
+    setup.add_argument("--dry-run", action="store_true", help="Print copy-paste snippets without touching any file")
+    setup.add_argument("--scope", choices=list(SCOPES), default="user", help="user: per-user config; project: config in --cwd")
+    setup.add_argument("--json", action="store_true", help="Machine-readable result")
+    setup.add_argument("--no-verify", action="store_true", help="Do not start the server to verify the launch spec")
+    setup.add_argument("--home", type=Path, default=None, help="Override the user home directory (testing)")
+    setup.add_argument("--cwd", type=Path, default=None, help="Project directory for --scope project")
     sub.add_parser("capabilities", help="Show backends and limits")
     sub.add_parser("devices", help="List connected devices")
     sub.add_parser("captures", help="List saved captures")
@@ -82,6 +97,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.backend:
             mcp_args += ["--backend", args.backend]
         return mcp_main(mcp_args)
+    if args.command == "mcp-install":
+        return _run_mcp_install(args)
 
     service = LogicAgentService(data_dir=args.data_dir)
     if args.backend:
@@ -172,6 +189,35 @@ def main(argv: list[str] | None = None) -> int:
 
     print(json.dumps(payload, indent=2, ensure_ascii=False))
     return 0
+
+
+def _run_mcp_install(args: argparse.Namespace) -> int:
+    """Write (or preview, or remove) the MCP entry in every supported agent's config."""
+    locations = Locations.detect(home=args.home, cwd=args.cwd)
+    try:
+        if args.list:
+            rows = list_clients(locations)
+            print(json.dumps(rows, indent=2, ensure_ascii=False) if args.json else format_clients(rows))
+            return 0
+        installation = install(
+            locations=locations,
+            scope=args.scope,
+            only=args.clients,
+            include_all=args.all,
+            remove=args.remove,
+            dry_run=args.dry_run,
+            verify=not args.no_verify,
+            data_dir=args.data_dir,
+            backend=args.backend,
+        )
+    except LogicAgentError as exc:
+        print(json.dumps(exc.to_dict(), indent=2, ensure_ascii=False))
+        return 2
+    if args.json:
+        print(json.dumps(installation.as_dict(), indent=2, ensure_ascii=False))
+    else:
+        print(format_report(installation, dry_run=args.dry_run))
+    return 0 if installation.ok else 2
 
 
 def _parse_mapping(value: str) -> dict[str, str]:

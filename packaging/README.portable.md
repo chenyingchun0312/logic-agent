@@ -26,6 +26,7 @@ logic-agent/
   VIEW.cmd                 从已保存采集导出 VCD 并打开波形
   API.cmd                  logic_agent 命令行入口
   MCP.cmd                  MCP stdio 服务入口
+  INSTALL-MCP.cmd          一键把 MCP 接入本机 AI 客户端（Codex/Claude/Copilot/…）
   INSTALL-DRIVER.cmd       WinUSB 驱动安装入口
   FIRMWARE-STATUS.cmd      查看设备/固件运行状态
   FIRMWARE-RECOVER.cmd     仅诊断 bootloader，并打印人工恢复命令
@@ -45,6 +46,7 @@ logic-agent/
 3. 插好 DSLogic Plus，使用直连 USB 口和短数据线；如果 Windows 不认识设备，双击 `INSTALL-DRIVER.cmd` 并允许 UAC。
 4. 双击 `CHECK.cmd`，看到顶层 `"ok": true` 即部署成功。
 5. 再双击 `SELF-TEST.cmd`，验证 USB、FPGA、采样和落盘链路。
+6. 需要 AI 接入时双击 `INSTALL-MCP.cmd`，自动配置并验证本机的 MCP 客户端。
 
 `CHECK.cmd` 依次检查便携运行时、协议入口、离线 I²C 解码、MCP 初始化、设备枚举和真实短采集，不会刷固件。只想先验证软件、不接硬件时：
 
@@ -62,13 +64,22 @@ CAPTURE.cmd --channels D0 --rate 1M --samples 10000 --out data\my-capture --json
 
 ## AI / MCP 接入
 
-```toml
-[mcp_servers.logic_analyzer]
-command = "cmd"
-args = ["/c", "D:/tools/logic-agent/MCP.cmd", "--backend", "dslab", "--data-dir", "D:/tools/logic-agent/data/captures"]
+双击 `INSTALL-MCP.cmd`，一条命令完成：检测本机安装的 Codex、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf、Cline，把 `logic-analyzer` 合并写进各自配置，并真实启动一次服务验证 `capabilities`。
+
+```powershell
+INSTALL-MCP.cmd              # 检测 + 写入 + 验证
+INSTALL-MCP.cmd --list       # 只列出客户端和配置路径
+INSTALL-MCP.cmd --dry-run    # 只打印可粘贴的 JSON/TOML
+INSTALL-MCP.cmd --remove     # 删除这条配置
 ```
 
-把 `D:/tools/logic-agent` 换成实际路径。建议先让 Agent 调用 `capabilities`、`list_devices`、`self_test`，再采集。
+客户端直接 spawn 包内解释器，不经过 `cmd.exe`，不需要任何环境变量：
+
+```text
+D:\tools\logic-agent\runtime\python\python.exe -m logic_agent.mcp_server --data-dir D:\tools\logic-agent\data\captures
+```
+
+完整的客户端表格、手动配置、排错见 `docs\MCP-CLIENTS.md`。建议先让 Agent 调用 `capabilities`、`list_devices`、`self_test`，再采集。
 
 ## 协议
 
@@ -97,4 +108,4 @@ API.cmd decode <capture_id> modbus --channels tx=D0 --options baudrate=115200
 - FPGA bitstream 和固件：DreamSourceLab，许可证见 `firmware/LICENSE-DreamSourceLab.txt`。
 - 完整列表见 `THIRD-PARTY-NOTICES.md` 和 `runtime/licenses/`。
 
-更多说明：`docs\INSTALL.md`、`docs\DRIVER.md`、`docs\FIRMWARE.md`、`docs\PROTOCOLS.md`、`docs\DSLOGIC-PLUS.md`、`docs\UPSTREAM-SYNC.md`、`docs\TROUBLESHOOTING.md`。
+更多说明：`docs\INSTALL.md`、`docs\DRIVER.md`、`docs\FIRMWARE.md`、`docs\PROTOCOLS.md`、`docs\MCP-CLIENTS.md`、`docs\DSLOGIC-PLUS.md`、`docs\UPSTREAM-SYNC.md`、`docs\TROUBLESHOOTING.md`。

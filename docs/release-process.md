@@ -45,7 +45,7 @@ pwsh scripts/release.ps1
 3. 生成 `checksums.sha256` 并校验；
 4. 用包内 `logic-agent.cmd` 跑 `capabilities`；
 5. 以包内的 `dslab.exe`、`sigrok-cli` 和解码器跑全部 pytest，解码器测试被跳过视为失败；
-6. 用 Windows PowerShell 5.1 跑 `CHECK -SkipHardware`（与同事的实际入口一致）；
+6. 用 Windows PowerShell 5.1 跑 `CHECK -SkipHardware`（与同事的实际入口一致），其中包含在临时 home 里执行一次 `mcp-install`，确认生成的 MCP 配置指向包内解释器；
 7. 清理缓存，重算并复验校验和；
 8. 压缩为 `dist/logic-agent-dslogic-plus-v<版本>-win-x64.zip`，生成 `.sha256` 和 `.json`；
 9. 解压到新目录再校验一次。

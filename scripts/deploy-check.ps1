@@ -87,6 +87,33 @@ if (-not $SkipMcp) {
         $protocolCount = 0
     }
     Add-Check 'mcp-capabilities-22-protocols' ($protocolCount -eq 22) "count=$protocolCount" 
+
+    # One-command client setup. Runs against a throwaway home so the real user
+    # config is never touched, then proves the launch spec is self-contained:
+    # no cmd.exe, no DSLAB_* env, absolute paths only.
+    $fakeHome = Join-Path $Root 'runs\mcp-install-home'
+    foreach ($dir in '.codex', '.kiro') { New-Item -ItemType Directory -Force -Path (Join-Path $fakeHome $dir) | Out-Null }
+    $setupText = & $python -m logic_agent.cli mcp-install --home $fakeHome --no-verify --json 2>&1 | Out-String
+    $setup = $null
+    try { $setup = $setupText | ConvertFrom-Json } catch { $setup = $null }
+    $codexConfig = Join-Path $fakeHome '.codex\config.toml'
+    $kiroConfig = Join-Path $fakeHome '.kiro\settings\mcp.json'
+    $kiroEntry = $null
+    if (Test-Path -LiteralPath $kiroConfig) {
+        $kiroEntry = (Get-Content -LiteralPath $kiroConfig -Raw | ConvertFrom-Json).mcpServers.'logic-analyzer'
+    }
+    $launchOk = $false
+    if ($setup) {
+        $command = [string]$setup.launch.command
+        $launchOk = (Test-Path -LiteralPath $command) -and
+            ($command -like '*python*.exe') -and
+            (@($setup.launch.args) -contains 'logic_agent.mcp_server') -and
+            (@($setup.launch.args) -contains '--data-dir')
+    }
+    $entryOk = $null -ne $kiroEntry -and $kiroEntry.command -eq $setup.launch.command -and
+        (@($kiroEntry.args) -contains 'logic_agent.mcp_server')
+    Add-Check 'mcp-install' ([bool]$setup -and $setup.ok -and $launchOk -and $entryOk -and (Test-Path -LiteralPath $codexConfig)) $setupText.Trim()
+    Remove-Item -LiteralPath $fakeHome -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 if (Test-Path -LiteralPath $sigrok) {

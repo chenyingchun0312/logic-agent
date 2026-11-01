@@ -5,6 +5,15 @@
 
 ## [Unreleased]
 
+### Added
+- `logic-agent mcp-install`（发布包里的 `INSTALL-MCP.cmd`）：一条命令把 `logic-analyzer` 加进本机的 Codex、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf 和 Cline。默认只处理检测到的客户端，合并写入（其它 server 原样保留），配置无法解析时报告且不覆盖，写完用真实 `initialize` + `capabilities` 验证启动。支持 `--list`、`--dry-run`、`--remove`、`--scope project`、`--json`、`--backend`、`--data-dir`。
+- `docs/mcp-clients.md`（发布包内 `docs\MCP-CLIENTS.md`）：客户端配置位置、手动 JSON/TOML、常见排错。
+- `CHECK.cmd` 增加 `mcp-install` 门禁：在临时 home 里写入配置，确认启动命令是包内解释器、不经过 `cmd.exe`、也不依赖 `DSLAB_*` 环境变量。
+
+### Changed
+- MCP 配置改为直接 spawn 包内 `runtime\python\python.exe -m logic_agent.mcp_server`，不再经过 `cmd /c MCP.cmd`：空格路径和批处理引号问题消失，各客户端配置形式统一。`MCP.cmd` 保留且行为不变。
+- `DslabBackend` 在便携布局下自动发现 `runtime/bin/dslab.exe`，所以客户端配置里不需要 `DSLAB_EXE`/`DSLAB_RES_DIR`。
+
 ## [1.1.1] - 2026-10-31
 
 仅打包变化，`logic_agent` 和 `dslab` 代码与 1.1.0 相同。

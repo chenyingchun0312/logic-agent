@@ -110,6 +110,7 @@ Copy-Tree (Join-Path $root 'packaging\portable-scripts') (Join-Path $bundle 'scr
 $docs = Join-Path $bundle 'docs'
 Get-ChildItem -LiteralPath (Join-Path $root 'packaging\docs') -File | Copy-Item -Destination $docs
 Copy-Item -LiteralPath (Join-Path $root 'docs\protocol-decoding.md') -Destination (Join-Path $docs 'PROTOCOLS.md')
+Copy-Item -LiteralPath (Join-Path $root 'docs\mcp-clients.md') -Destination (Join-Path $docs 'MCP-CLIENTS.md')
 Copy-Item -LiteralPath (Join-Path $root 'docs\upstream-sync.md') -Destination (Join-Path $docs 'UPSTREAM-SYNC.md')
 Copy-Item -LiteralPath (Join-Path $root 'docs\dslogic-plus.md') -Destination (Join-Path $docs 'DSLOGIC-PLUS.md')
 Copy-Item -LiteralPath (Join-Path $root 'packaging\README.portable.md') -Destination (Join-Path $bundle 'README.md')

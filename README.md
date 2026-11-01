@@ -14,24 +14,37 @@
 1. 从 [Releases](../../releases) 下载 `logic-agent-dslogic-plus-v<版本>-win-x64.zip` 和同名 `.sha256`。
 2. 解压到英文路径，例如 `D:\tools\logic-agent`。
 3. 依次运行 `VERIFY-FILES.cmd`、`CHECK.cmd`、`SELF-TEST.cmd`，都应输出顶层 `"ok": true`。设备不认时先运行 `INSTALL-DRIVER.cmd`。
-4. 在 MCP 客户端里配置：
+4. 双击 `INSTALL-MCP.cmd`：自动检测本机的 Codex、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf、Cline，把 `logic-analyzer` 写进各自的配置，并真实启动一次服务验证 `capabilities`。
+
+`INSTALL-MCP.cmd --list` 看会写哪些文件，`--dry-run` 只打印可粘贴的配置，`--remove` 删除这条配置。细节和手动配置见 [`docs/mcp-clients.md`](docs/mcp-clients.md)。
+
+没有检测到你用的客户端时，直接粘贴等价配置（把路径换成实际目录）：
 
 ```toml
 # Codex: ~/.codex/config.toml
 [mcp_servers.logic_analyzer]
-command = "cmd"
-args = ["/c", "D:/tools/logic-agent/MCP.cmd", "--backend", "dslab", "--data-dir", "D:/tools/logic-agent/data/captures"]
+command = "D:/tools/logic-agent/runtime/python/python.exe"
+args = ["-m", "logic_agent.mcp_server", "--data-dir", "D:/tools/logic-agent/data/captures"]
 ```
 
 ```json
-// Claude Desktop / Kiro / 其他 MCP 客户端
+// Claude Desktop / Kiro / Cursor / Windsurf / Cline
 { "mcpServers": { "logic-analyzer": {
-    "command": "cmd",
-    "args": ["/c", "D:/tools/logic-agent/MCP.cmd", "--backend", "dslab", "--data-dir", "D:/tools/logic-agent/data/captures"]
+    "command": "D:/tools/logic-agent/runtime/python/python.exe",
+    "args": ["-m", "logic_agent.mcp_server", "--data-dir", "D:/tools/logic-agent/data/captures"]
 } } }
 ```
 
-包内的 `docs/INSTALL.md`、`DRIVER.md`、`FIRMWARE.md`、`TROUBLESHOOTING.md` 有详细说明。
+```json
+// VS Code Copilot: .vscode/mcp.json（注意是 servers，且需要 type）
+{ "servers": { "logic-analyzer": {
+    "type": "stdio",
+    "command": "D:/tools/logic-agent/runtime/python/python.exe",
+    "args": ["-m", "logic_agent.mcp_server", "--data-dir", "D:/tools/logic-agent/data/captures"]
+} } }
+```
+
+包内的 `docs/INSTALL.md`、`MCP-CLIENTS.md`、`DRIVER.md`、`FIRMWARE.md`、`TROUBLESHOOTING.md` 有详细说明。
 
 ## 从源码构建
 
@@ -47,6 +60,13 @@ pwsh scripts/release.ps1               # 生成 dist/*.zip
 ```
 
 所有第三方输入的版本和 SHA-256 都固定在 [`deps.json`](deps.json)。只改 Python 代码时不需要编译 C。内网镜像、离线环境和贡献流程见 [`CONTRIBUTING.md`](CONTRIBUTING.md)；给 AI 编码代理的约定见 [`AGENTS.md`](AGENTS.md)。
+
+源码里接入 MCP 客户端（写入本机 Codex / Claude Code / Copilot 等配置）：
+
+```powershell
+.venv\Scripts\python -m logic_agent.cli mcp-install            # 自动检测并验证
+.venv\Scripts\python -m logic_agent.cli mcp-install --dry-run  # 只看要写什么
+```
 
 不接 MCP 也能直接试用：
 

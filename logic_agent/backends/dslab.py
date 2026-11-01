@@ -35,8 +35,13 @@ class DslabBackend:
 
     @staticmethod
     def _discover() -> str | None:
+        app = Path(__file__).resolve().parents[2]  # <root>/runtime/app in the portable bundle
         candidates = [
-            Path(__file__).resolve().parents[2] / "dslab" / "build" / "dslab.exe",
+            # Portable bundle: runtime/app/logic_agent/backends -> runtime/bin/dslab.exe.
+            app / "bin" / "dslab.exe",
+            app.parent / "bin" / "dslab.exe",
+            # Source checkout: dslab/build/dslab.exe.
+            app / "dslab" / "build" / "dslab.exe",
             Path.cwd() / "dslab" / "build" / "dslab.exe",
         ]
         for item in candidates:

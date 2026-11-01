@@ -47,15 +47,21 @@ CAPTURE.cmd --channels D0,D1 --rate 10M --trigger D0=R --trigger-pos 10 --durati
 
 ## AI/MCP
 
-把路径换成实际目录：
+双击 `INSTALL-MCP.cmd`。它会检测本机的 Codex、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf、Cline，把 `logic-analyzer` 合并写进各自的配置，然后真实启动一次 MCP 服务确认能回答 `capabilities`。
 
-```toml
-[mcp_servers.logic_analyzer]
-command = "cmd"
-args = ["/c", "D:/tools/logic-agent/MCP.cmd", "--backend", "dslab", "--data-dir", "D:/tools/logic-agent/data/captures"]
+```powershell
+INSTALL-MCP.cmd --list       # 看装了哪些客户端、配置写到哪个文件
+INSTALL-MCP.cmd --dry-run    # 只打印可粘贴的配置，不写文件
+INSTALL-MCP.cmd --remove     # 删除这条配置，其它 server 不动
 ```
 
-Agent 推荐顺序：`capabilities` → `list_devices` → `self_test` → `capture` → `analyze_window` / `decode_protocol`。
+写入的是包内解释器的绝对路径，不需要 `cmd`、`DSLAB_EXE` 或其它环境变量：
+
+```text
+D:\tools\logic-agent\runtime\python\python.exe -m logic_agent.mcp_server --data-dir D:\tools\logic-agent\data\captures
+```
+
+客户端列表、手动 JSON/TOML、排错见 `docs\MCP-CLIENTS.md`。Agent 推荐顺序：`capabilities` → `list_devices` → `self_test` → `capture` → `analyze_window` / `decode_protocol`。
 
 ## 版本与压缩包校验
 
