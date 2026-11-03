@@ -69,17 +69,82 @@ function Test-Msys2Ready([string]$Root) {
 
 # sigrok-cli.exe is statically linked; it only needs its Python 3.4 runtime
 # and the libsigrokdecode decoder tree next to it.
-function Find-SigrokRoot([string]$Hint = '') {
-    $candidates = @($Hint, $env:SIGROK_CLI_ROOT, (Join-Path $script:DepsDir 'sigrok-cli'))
-    if ($env:ZEPHYR_ENV_HOME) { $candidates += (Join-Path $env:ZEPHYR_ENV_HOME 'sigrok-cli') }
-    $candidates += 'C:\Program Files\sigrok\sigrok-cli', 'C:\Program Files (x86)\sigrok\sigrok-cli'
-    foreach ($c in ($candidates | Where-Object { $_ })) {
-        if ((Test-Path -LiteralPath (Join-Path $c 'sigrok-cli.exe')) -and
-            (Test-Path -LiteralPath (Join-Path $c 'share\libsigrokdecode\decoders\i2c\pd.py'))) {
-            return (Resolve-Path $c).Path
+# Locate a top-level-or-nested JSON object assigned to "Key" and return its span
+# ({ Start; Length }), matched by brace counting so nested objects stay intact.
+function Get-JsonObjectSpan([string]$Text, [string]$Key) {
+    $m = [regex]::Match($Text, '"' + [regex]::Escape($Key) + '"\s*:\s*\{')
+    if (-not $m.Success) { return $null }
+    $start = $m.Index + $m.Length - 1
+    $depth = 0
+    $inString = $false
+    $escaped = $false
+    for ($i = $start; $i -lt $Text.Length; $i++) {
+        $c = $Text[$i]
+        if ($inString) {
+            if ($escaped) { $escaped = $false }
+            elseif ($c -eq '\') { $escaped = $true }
+            elseif ($c -eq '"') { $inString = $false }
+            continue
+        }
+        if ($c -eq '"') { $inString = $true; continue }
+        if ($c -eq '{') { $depth++ }
+        elseif ($c -eq '}') {
+            $depth--
+            if ($depth -eq 0) { return @{ Start = $start; Length = $i - $start + 1 } }
         }
     }
     $null
+}
+
+# Replace a string value that sits at exactly <Indent> inside a JSON block, leaving
+# deeper-indented keys of the same name (nested objects) alone.
+function Set-JsonScalar([string]$Block, [string]$Indent, [string]$Name, [string]$Value) {
+    $pattern = '(?m)^' + [regex]::Escape($Indent) + '"' + [regex]::Escape($Name) + '"\s*:\s*"[^"]*"'
+    $replacement = $Indent + '"' + $Name + '": "' + $Value + '"'
+    [regex]::Replace($Block, $pattern, $replacement.Replace('$', '$$'))
+}
+
+# sigrok.org ships the Windows sigrok-cli build as an NSIS installer (no zip, no
+# GitHub releases), so mirroring its runtime starts with unpacking that .exe.
+function Find-7Zip {
+    $candidates = @()
+    foreach ($name in '7z.exe', '7za.exe', '7zz.exe') {
+        $cmd = Get-Command $name -ErrorAction SilentlyContinue
+        if ($cmd) { $candidates += $cmd.Source }
+    }
+    foreach ($base in $env:ProgramFiles, ${env:ProgramFiles(x86)}) {
+        if ($base) { $candidates += (Join-Path $base '7-Zip\7z.exe') }
+    }
+    $candidates += 'C:\Program Files\7-Zip\7z.exe'
+    foreach ($c in $candidates) {
+        if ($c -and (Test-Path -LiteralPath $c)) { return $c }
+    }
+    $null
+}
+
+# Unpack a sigrok-cli NSIS installer into <Dest> and check it looks like a
+# runtime root (sigrok-cli.exe + share\libsigrokdecode\decoders\i2c\pd.py).
+function Expand-NsisInstaller([string]$Installer, [string]$Dest) {
+    if (-not (Test-Path -LiteralPath $Installer)) { throw "installer not found: $Installer" }
+    $sevenZip = Find-7Zip
+    if (-not $sevenZip) {
+        throw @'
+7-Zip is required to unpack the sigrok-cli installer: sigrok.org only publishes
+NSIS .exe builds (there is no zip and no GitHub binary release). Install 7-Zip
+(https://7-zip.org); the 'sigrok runtime' workflow installs it on the runner, so
+minting never depends on a developer machine.
+'@
+    }
+    if (Test-Path -LiteralPath $Dest) { Remove-Item -LiteralPath $Dest -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $Dest | Out-Null
+    & $sevenZip x -y -bb0 "-o$Dest" $Installer
+    if ($LASTEXITCODE -ne 0) { throw "7-Zip failed to extract $Installer (exit $LASTEXITCODE)" }
+    foreach ($need in 'sigrok-cli.exe', 'share\libsigrokdecode\decoders\i2c\pd.py') {
+        if (-not (Test-Path -LiteralPath (Join-Path $Dest $need))) {
+            throw "extracted tree has no ${need}: $Dest"
+        }
+    }
+    $Dest
 }
 
 function Get-DepPaths {
@@ -135,7 +200,10 @@ $script:SigrokRuntimeFiles = @(
 )
 
 # Normalise a sigrok-cli installation into <Dest>\bin and <Dest>\decoders.
-function Copy-SigrokRuntime([string]$SourceRoot, [string]$Dest) {
+# -SkipVersionProbe is for packing a mirror on a machine where the binary cannot
+# execute (wrong arch, blocked by policy); the shipped decoder tests are the real
+# gate, VERSION.txt is informational.
+function Copy-SigrokRuntime([string]$SourceRoot, [string]$Dest, [switch]$SkipVersionProbe) {
     $bin = Join-Path $Dest 'bin'
     $decoders = Join-Path $Dest 'decoders'
     if (Test-Path -LiteralPath $Dest) { Remove-Item -LiteralPath $Dest -Recurse -Force }
@@ -150,6 +218,9 @@ function Copy-SigrokRuntime([string]$SourceRoot, [string]$Dest) {
     Get-ChildItem -LiteralPath $decoders -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
     $copying = Join-Path $SourceRoot 'COPYING'
     if (Test-Path -LiteralPath $copying) { Copy-Item -LiteralPath $copying -Destination (Join-Path $Dest 'COPYING') }
-    $version = (& (Join-Path $bin 'sigrok-cli.exe') --version 2>&1 | Select-Object -First 1)
+    $version = 'unknown (version probe skipped)'
+    if (-not $SkipVersionProbe) {
+        $version = (& (Join-Path $bin 'sigrok-cli.exe') --version 2>&1 | Select-Object -First 1)
+    }
     Set-Content -LiteralPath (Join-Path $Dest 'VERSION.txt') -Value $version -Encoding utf8
 }

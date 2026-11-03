@@ -25,7 +25,12 @@
     "version": "0.8.0-git-f44dd91",
     "url": "",
     "sha256": "",
-    "_comment": "Repackaged minimal runtime made by scripts/pack-sigrok-cli.ps1 and uploaded as a GitHub release asset. Leave url empty to require a local sigrok-cli (ZEPHYR_ENV_HOME\\sigrok-cli or -SigrokRoot)."
+    "upstream": {
+      "url": "https://sigrok.org/download/binary/sigrok-cli/sigrok-cli-NIGHTLY-x86_64-release-installer.exe",
+      "sha256": "",
+      "_comment": "Upstream NSIS installer the pinned runtime is minted from. Only scripts/pack-sigrok-cli.ps1 reads it; bootstrap.ps1 never downloads it."
+    },
+    "_comment": "Repackaged minimal runtime made by scripts/pack-sigrok-cli.ps1 and uploaded as a GitHub release asset. Empty url means 'not minted yet': bootstrap then stops with instructions - nothing is ever copied from a local machine."
   },
   "msys2": {
     "installer_url": "https://repo.msys2.org/distrib/msys2-base-x86_64-latest.sfx.exe",

@@ -1,0 +1,123 @@
+name: sigrok runtime
+
+# Mints the pinned sigrok-cli runtime: downloads the upstream sigrok.org installer,
+# unpacks it, repacks the minimal runtime (bin/ + decoders/ + VERSION.txt),
+# publishes the zip as a release asset and records url + sha256 in deps.json.
+#
+# Why this exists: sigrok.org only publishes NSIS installers (no zip, no GitHub
+# binary release) and the nightly build keeps a constant version string, so the
+# upstream URL alone is not a pin. This workflow is what turns it into one, so
+# bootstrap and CI never touch a machine-local sigrok-cli.
+#
+# Usage: Actions -> sigrok runtime -> Run workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      upstream:
+        description: Installer URL (blank = deps.json sigrok_cli.upstream.url)
+        required: false
+        default: ''
+      tag:
+        description: Release tag to publish the runtime under
+        required: true
+        default: ''
+      commit:
+        description: Commit the updated deps.json to main
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sigrok-runtime
+  cancel-in-progress: false
+
+jobs:
+  mint:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: ensure 7-Zip
+        shell: pwsh
+        run: |
+          . (Join-Path $env:GITHUB_WORKSPACE 'scripts/lib/common.ps1')
+          $sevenZip = Find-7Zip
+          if ($sevenZip) { Write-Host "7-Zip: $sevenZip"; exit 0 }
+          Write-Host '::warning::no 7-Zip on the runner image; installing it'
+          choco install 7zip --no-progress -y
+          $sevenZip = Find-7Zip
+          if (-not $sevenZip) { Write-Host '::error::7-Zip is still missing'; exit 1 }
+          Write-Host "7-Zip: $sevenZip"
+
+      - name: plan
+        id: plan
+        shell: pwsh
+        run: |
+          $tag = '${{ inputs.tag }}'.Trim()
+          if (-not $tag) { Write-Host '::error::tag is required'; exit 1 }
+          $upstream = '${{ inputs.upstream }}'.Trim()
+          if (-not $upstream) {
+            $upstream = (Get-Content deps.json -Raw | ConvertFrom-Json).sigrok_cli.upstream.url
+          }
+          if (-not $upstream) { Write-Host '::error::no installer URL to work from'; exit 1 }
+          $stamp = '-' + (Get-Date -Format 'yyyyMMdd')
+          "upstream=$upstream" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "stamp=$stamp" >> $env:GITHUB_OUTPUT
+          Write-Host "installer: $upstream"
+          Write-Host "asset    : sigrok-cli-<version>$stamp-win64.zip"
+
+      - name: mint the runtime zip
+        shell: pwsh
+        run: |
+          pwsh scripts/pack-sigrok-cli.ps1 `
+            -FromInstaller '${{ steps.plan.outputs.upstream }}' `
+            -Stamp '${{ steps.plan.outputs.stamp }}' `
+            -Tag '${{ steps.plan.outputs.tag }}' `
+            -OutDir dist/sigrok `
+            -UpdateDeps
+
+      - name: publish the release asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ steps.plan.outputs.tag }}'
+          $zip = Get-ChildItem -Path dist/sigrok -Filter *.zip | Select-Object -First 1
+          if (-not $zip) { Write-Host '::error::no zip was produced'; exit 1 }
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --title "sigrok-cli runtime $tag" `
+              --notes "Pinned sigrok-cli runtime, minted by the 'sigrok runtime' workflow from the upstream installer."
+          }
+          gh release upload $tag $zip.FullName --clobber
+          Write-Host "uploaded $($zip.Name) to $tag"
+
+      - name: commit the pin
+        if: inputs.commit
+        shell: pwsh
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deps.json
+          if (git diff --cached --quiet) { Write-Host 'deps.json unchanged'; exit 0 }
+          git commit -m "chore: pin sigrok-cli runtime to ${{ steps.plan.outputs.tag }}"
+          git push origin HEAD:main
+
+      - name: summary
+        shell: pwsh
+        run: |
+          $deps = Get-Content deps.json -Raw | ConvertFrom-Json
+          Add-Content $env:GITHUB_STEP_SUMMARY "### sigrok-cli $($deps.sigrok_cli.version)"
+          Add-Content $env:GITHUB_STEP_SUMMARY ''
+          Add-Content $env:GITHUB_STEP_SUMMARY "- installer: ${{ steps.plan.outputs.upstream }}"
+          Add-Content $env:GITHUB_STEP_SUMMARY "- pinned zip: $($deps.sigrok_cli.url)"
+          Add-Content $env:GITHUB_STEP_SUMMARY "- sha256: $($deps.sigrok_cli.sha256)"
+          Add-Content $env:GITHUB_STEP_SUMMARY ''
+          Add-Content $env:GITHUB_STEP_SUMMARY 'Next: rerun the npm workflow. bootstrap now downloads this zip instead of looking for a local sigrok-cli.'

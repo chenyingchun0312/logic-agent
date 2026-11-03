@@ -23,7 +23,7 @@ pwsh scripts/test.ps1 -RequireDecoders
 | 依赖 | 换源方式 |
 |---|---|
 | DSView 源码 | `-DsviewRepo <内部镜像 URL 或本地 checkout>`，或设 `DSVIEW_GIT_URL` |
-| sigrok-cli | 已安装时 `-SigrokRoot <目录>`；设了 `ZEPHYR_ENV_HOME` 时自动用 `%ZEPHYR_ENV_HOME%\sigrok-cli` |
+| sigrok-cli | `deps.json` 里的固定 URL（由 `sigrok runtime` workflow 生成；不再从本机拷贝） |
 | MSYS2 | `-Msys2Root <目录>`，或设 `MSYS2_ROOT` |
 | pip | 设 `PIP_INDEX_URL` |
 

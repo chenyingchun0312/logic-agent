@@ -23,8 +23,6 @@ param(
     [string]$DsviewRepo = '',
     # Existing MSYS2 root (folder containing usr\bin\bash.exe).
     [string]$Msys2Root = '',
-    # Existing sigrok-cli install (folder containing sigrok-cli.exe and share\libsigrokdecode).
-    [string]$SigrokRoot = '',
     [string]$Python = 'python',
     [switch]$SkipMsys2,
     [switch]$SkipSigrok,
@@ -114,23 +112,27 @@ if (-not $SkipMsys2) {
 if (-not $SkipSigrok) {
     $sigrokDest = Split-Path -Parent $paths.SigrokBin
     if ($Force -or -not (Test-Path -LiteralPath (Join-Path $paths.SigrokBin 'sigrok-cli.exe'))) {
-        $src = Find-SigrokRoot $SigrokRoot
-        if ($src) {
-            Write-Step "sigrok-cli from $src"
-            Copy-SigrokRuntime $src $sigrokDest
-        } elseif ($deps.sigrok_cli.url) {
-            $zip = Get-PinnedFile $deps.sigrok_cli.url $deps.sigrok_cli.sha256 "sigrok-cli-$($deps.sigrok_cli.version)-win-x64.zip"
-            if (Test-Path -LiteralPath $sigrokDest) { Remove-Item -LiteralPath $sigrokDest -Recurse -Force }
-            Expand-Archive -LiteralPath $zip -DestinationPath $sigrokDest
-        } else {
-            throw @"
-sigrok-cli not found. Do one of:
-  - install it from https://sigrok.org/wiki/Downloads (Windows, sigrok-cli) and pass -SigrokRoot <dir>
-  - set SIGROK_CLI_ROOT, or put it under %ZEPHYR_ENV_HOME%\sigrok-cli
-  - set sigrok_cli.url/sha256 in deps.json to a repackaged archive (scripts/pack-sigrok-cli.ps1)
-  - or rerun with -SkipSigrok (protocol decoder tests will be skipped, no release possible)
-"@
+        if (-not $deps.sigrok_cli.url) {
+            throw @'
+sigrok_cli.url is not pinned in deps.json.
+
+Nothing needs to be installed locally: the runtime is repackaged once from the
+upstream sigrok.org installer and published as a release asset. To mint the pin
+run the 'sigrok runtime' workflow (GitHub -> Actions -> Run workflow), or:
+
+  nothing needs to be installed or extracted locally: run the 'sigrok runtime'
+  workflow (GitHub -> Actions -> Run workflow), which downloads the upstream
+  installer, mints the pinned zip on the runner and commits deps.json.
+
+then upload the zip to that release and commit deps.json. Alternatively rerun
+with -SkipSigrok (protocol decoder tests are skipped, so no release is possible).
+'@
         }
+        $pin = if ($deps.sigrok_cli.sha256) { $deps.sigrok_cli.sha256.Substring(0, 8) } else { 'unpinned' }
+        $zip = Get-PinnedFile $deps.sigrok_cli.url $deps.sigrok_cli.sha256 "sigrok-cli-$($deps.sigrok_cli.version)-$pin-win-x64.zip"
+        if (Test-Path -LiteralPath $sigrokDest) { Remove-Item -LiteralPath $sigrokDest -Recurse -Force }
+        Write-Step "unpack sigrok-cli $($deps.sigrok_cli.version)"
+        Expand-Archive -LiteralPath $zip -DestinationPath $sigrokDest
     }
     Sync-DecoderOverlay
     $summary.sigrok = (Get-Content -LiteralPath (Join-Path $sigrokDest 'VERSION.txt') -ErrorAction SilentlyContinue | Select-Object -First 1)

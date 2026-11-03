@@ -116,9 +116,9 @@ pwsh scripts/bootstrap.ps1 -Force -SkipMsys2 -SkipSigrok -SkipPythonEmbed -SkipV
 
 ## 6. libsigrokdecode 升级步骤
 
-1. 安装或取得新版 sigrok-cli Windows 运行时；
-2. `pwsh scripts/bootstrap.ps1 -SigrokRoot <新目录> -Force -SkipMsys2 -SkipPythonEmbed -SkipVenv`；
-3. 更新 `deps.json` 的 `sigrok_cli.version`（以及 `url`/`sha256`，如果使用重新打包的归档）；
+1. 跑 `sigrok runtime` workflow（从上游安装包重新 mint 运行时并回填 `deps.json`，全程在 CI 上完成）；
+2. `pwsh scripts/bootstrap.ps1 -Force -SkipMsys2 -SkipPythonEmbed -SkipVenv`（从 `deps.json` 的固定 URL 下载新运行时）；
+3. 确认 `deps.json` 的 `sigrok_cli.version`/`url`/`sha256` 已由第 1 步更新；
 4. 检查 `logic_agent/decoders.py` 中各协议的通道角色、选项名和输出事件是否变化；
 5. `pwsh scripts/test.ps1 -RequireDecoders`；
 6. 同步 `docs/protocol-decoding.md` 和 `capabilities` 输出，重新发布。
