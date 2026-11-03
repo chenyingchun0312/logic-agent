@@ -11,7 +11,8 @@
 - `scripts/pack-sigrok-cli.ps1`：从上游 sigrok.org 安装包（NSIS，用 7-Zip 解开）重新 mint `sigrok-cli-<版本><日期>-win64.zip` 并算 sha256；`-UpdateDeps` 直接回填 `deps.json`（`url` 按 origin 远端推导，同时记录 `upstream.url`/`upstream.sha256`）。补上了 `deps.json` 和 `bootstrap.ps1` 一直引用但并不存在的脚本。
 - `.github/workflows/sigrok-runtime.yml`：手动触发，下载上游安装包 → 重打包 → 传成 release asset → 提交 `deps.json` 的 pin。上游 nightly 每次重建版本号不变，所以 pin 必须由这个 workflow 生成，不能直接用上游 URL。
 - `docs/npm.md`：npm 包形态、包内容、构建/发布步骤、CI 的一次性前置（固定 sigrok-cli）、供应链与排错。
-- `scripts/lib/common.ps1`：`Copy-SigrokRuntime` 增加 `-SkipVersionProbe`，用于在无法执行该二进制的机器上打包（bootstrap 默认行为不变）。
+- `scripts/lib/common.ps1`：`Copy-SigrokRuntime` 增加 `-SkipVersionProbe`，用于在无法执行该二进制的机器上打包（bootstrap 默认行为不变）；版本探测抽成 `Write-SigrokVersionFile`，探测无输出时写 `unknown (... exit <code>)` 而不是空文件。
+- `deps.json` 新增 `vcredist` 固定项：mint 时把 MSVC 2010 x64 运行时（`msvcr100.dll`、`msvcp100.dll`）放到 `sigrok-cli.exe` 旁边。`sigrok-cli.exe` 只依赖 `python34.dll`，但后者导入 `MSVCR100.dll`，上游安装包并不带它——缺了会在干净机器上直接 `exit 0xC0000135`（DLL not found），版本探测也因此为空。
 
 ### Changed
 - `scripts/bootstrap.ps1` 不再从本机拷贝 sigrok-cli：删掉 `-SigrokRoot` 参数和 `Find-SigrokRoot` 的全部查找路径（`SIGROK_CLI_ROOT`、`.deps/sigrok-cli`、`%ZEPHYR_ENV_HOME%\sigrok-cli`、`C:\Program Files\sigrok\sigrok-cli`），只从 `deps.json` 的固定 `sigrok_cli.url` 下载并校验 sha256。`url` 为空时直接报错并给出 mint 步骤，不再静默回退本机安装。

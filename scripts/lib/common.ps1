@@ -222,8 +222,16 @@ function Copy-SigrokRuntime([string]$SourceRoot, [string]$Dest, [switch]$SkipVer
     Get-ChildItem -LiteralPath $decoders -Recurse -Directory -Filter '__pycache__' | Remove-Item -Recurse -Force
     $copying = Join-Path $SourceRoot 'COPYING'
     if (Test-Path -LiteralPath $copying) { Copy-Item -LiteralPath $copying -Destination (Join-Path $Dest 'COPYING') }
+    Write-SigrokVersionFile -RuntimeDest $Dest -SkipProbe:$SkipVersionProbe
+}
+
+# Writes VERSION.txt next to a normalised runtime by asking sigrok-cli for its
+# version. The probe fails (exit 0xC0000135) when MSVCR100.dll is absent, so the
+# mint step calls this again after it has added the MSVC runtime.
+function Write-SigrokVersionFile([string]$RuntimeDest, [switch]$SkipProbe) {
+    $bin = Join-Path $RuntimeDest 'bin'
     $version = 'unknown (version probe skipped)'
-    if (-not $SkipVersionProbe) {
+    if (-not $SkipProbe) {
         $probeOut = (& (Join-Path $bin 'sigrok-cli.exe') --version 2>&1 | Select-Object -First 1)
         $probeExit = $LASTEXITCODE
         $version = if ($null -ne $probeOut -and ([string]$probeOut).Trim()) {
@@ -232,5 +240,5 @@ function Copy-SigrokRuntime([string]$SourceRoot, [string]$Dest, [switch]$SkipVer
             "unknown (version probe produced no output, exit $probeExit)"
         }
     }
-    Set-Content -LiteralPath (Join-Path $Dest 'VERSION.txt') -Value $version -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $RuntimeDest 'VERSION.txt') -Value $version -Encoding utf8
 }

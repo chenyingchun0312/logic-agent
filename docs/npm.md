@@ -101,8 +101,13 @@ Actions -> sigrok runtime -> Run workflow
 ```
 
 它依次：下载上游安装包 → 7-Zip 解开 → 规范成 `bin/` + `decoders/` + `VERSION.txt` →
-产出 `sigrok-cli-0.8.0-git-f44dd91-20261103-win64.zip` → 传成 release asset →
-`-UpdateDeps` 回填 `deps.json` 并提交。
+补上 MSVC 2010 x64 运行时（`deps.json` 的 `vcredist`）→ 产出
+`sigrok-cli-0.8.0-git-f44dd91-20261103-win64.zip` → 传成 release asset → `-UpdateDeps`
+回填 `deps.json` 并提交。
+
+`vcredist` 这一步不能省：`sigrok-cli.exe` 只导入 `python34.dll`，但 `python34.dll` 导入
+`MSVCR100.dll`，而上游安装包并不带这个 DLL。缺了它，`sigrok-cli.exe` 在没有装 VC++ 2010
+运行时的机器上会直接 `exit 0xC0000135`（DLL not found），版本探测也是一片空白。
 
 下载、解包、重打包、上传、回填全在 runner 上完成：开发者机器不需要装过 sigrok-cli，
 也不需要先下载或解包安装包。workflow 会自己准备 7-Zip（runner 没带就装），所以这一步

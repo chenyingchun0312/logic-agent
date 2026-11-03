@@ -32,6 +32,12 @@
     },
     "_comment": "Repackaged minimal runtime made by scripts/pack-sigrok-cli.ps1 and uploaded as a GitHub release asset. Empty url means 'not minted yet': bootstrap then stops with instructions - nothing is ever copied from a local machine."
   },
+  "vcredist": {
+    "version": "10.0.40219",
+    "url": "https://github.com/chenyingchun0312/logic-agent/releases/download/sigrok-runtime-crt-20261103/sigrok-crt-10.0.40219-win64.zip",
+    "sha256": "91403bbd34075e38bc5fdaa700fd990510e73cb2b26d35f88a292346856f0446",
+    "_comment": "Microsoft Visual C++ 2010 x64 runtime (msvcr100.dll, msvcp100.dll). sigrok-cli.exe loads python34.dll, which imports MSVCR100.dll, and the sigrok.org installer does not ship it; pack-sigrok-cli.ps1 copies both DLLs next to sigrok-cli.exe so the runtime also works on machines without the VC++ 2010 redistributable. Only scripts/pack-sigrok-cli.ps1 reads this block."
+  },
   "msys2": {
     "installer_url": "https://repo.msys2.org/distrib/msys2-base-x86_64-latest.sfx.exe",
     "packages": [

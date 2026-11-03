@@ -10,10 +10,19 @@ SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
 def test_downloads_are_pinned_by_hash():
-    for name in ("firmware", "python_embed"):
+    for name in ("firmware", "python_embed", "vcredist"):
         entry = DEPS[name]
         assert entry["url"].startswith("https://"), name
         assert SHA256.fullmatch(entry["sha256"]), name
+
+
+def test_the_minted_runtime_is_required_to_carry_the_msvc_runtime():
+    # python34.dll imports MSVCR100.dll and sigrok.org's installer does not ship
+    # it, so a mint that forgets the CRT produces a runtime that cannot start.
+    assert DEPS["vcredist"]["url"].endswith(".zip"), DEPS["vcredist"]["url"]
+    text = (REPO / "scripts" / "pack-sigrok-cli.ps1").read_text(encoding="utf-8")
+    assert "bin/msvcr100.dll" in text
+    assert "vcredist" in text
 
 
 def test_sigrok_cli_is_a_repackaged_pin_not_an_upstream_url():

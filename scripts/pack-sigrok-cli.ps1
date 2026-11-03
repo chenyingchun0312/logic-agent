@@ -92,6 +92,31 @@ sigrok-cli-NIGHTLY-x86_64-release-installer.exe). The default path is the
     Write-Step 'normalise runtime (bin/ + decoders/ + COPYING + VERSION.txt)'
     Copy-SigrokRuntime -SourceRoot $src -Dest $normalised -SkipVersionProbe:$SkipVersionProbe
 
+    # ------------------------------------------------------------ msvc runtime
+    # sigrok-cli.exe only imports python34.dll, but python34.dll imports
+    # MSVCR100.dll, which sigrok.org's installer does not ship. Without it the
+    # exe dies with exit 0xC0000135 (DLL not found) on a clean machine - the app
+    # local copy makes the runtime self-contained.
+    $crtDlls = 'msvcr100.dll', 'msvcp100.dll'
+    $missing = @($crtDlls | Where-Object { -not (Test-Path -LiteralPath (Join-Path $normalised "bin\$_")) })
+    if ($missing) {
+        $crt = $deps.vcredist
+        if (-not $crt -or -not $crt.url) {
+            throw "the runtime needs $($missing -join ', ') next to sigrok-cli.exe but deps.json has no vcredist.url to fetch them from"
+        }
+        Write-Step "add the MSVC runtime ($($missing -join ', '))"
+        $crtZip = Get-PinnedFile $crt.url $crt.sha256 (Split-Path -Leaf $crt.url)
+        $crtDir = Join-Path $work 'crt'
+        if (Test-Path -LiteralPath $crtDir) { Remove-Item -LiteralPath $crtDir -Recurse -Force }
+        Expand-Archive -LiteralPath $crtZip -DestinationPath $crtDir -Force
+        foreach ($f in $missing) {
+            $dll = Join-Path $crtDir $f
+            if (-not (Test-Path -LiteralPath $dll)) { throw "$crtZip does not contain $f" }
+            Copy-Item -LiteralPath $dll -Destination (Join-Path $normalised 'bin')
+        }
+        Write-SigrokVersionFile -RuntimeDest $normalised
+    }
+
     # ------------------------------------------------------------ version
     $versionFile = Join-Path $normalised 'VERSION.txt'
     $probeText = if (Test-Path -LiteralPath $versionFile) { Get-Content -LiteralPath $versionFile -Raw } else { '' }
@@ -122,7 +147,7 @@ sigrok-cli-NIGHTLY-x86_64-release-installer.exe). The default path is the
     $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
     try { $entries = @($archive.Entries | ForEach-Object { $_.FullName -replace '\\', '/' }) }
     finally { $archive.Dispose() }
-    foreach ($need in 'bin/sigrok-cli.exe', 'bin/python34.dll', 'bin/python34.zip', 'decoders/i2c/pd.py', 'VERSION.txt') {
+    foreach ($need in 'bin/sigrok-cli.exe', 'bin/python34.dll', 'bin/python34.zip', 'bin/msvcr100.dll', 'decoders/i2c/pd.py', 'VERSION.txt') {
         if ($entries -notcontains $need) { throw "archive is missing $need; bootstrap would fail on it" }
     }
     $decoderCount = @($entries | Where-Object { $_ -like 'decoders/*/pd.py' }).Count
