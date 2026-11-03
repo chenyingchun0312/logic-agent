@@ -13,7 +13,9 @@ dslab/              C CLI over DreamSourceLab libsigrok4DSL. JSON on stdout. GPL
 decoders_ext/       libsigrokdecode decoders adapted from DSView. GPL-2.0-or-later.
 patches/            Our changes to DSView sources, applied by bootstrap.
 packaging/          Files that only exist in the portable bundle (launchers, bundle docs, scripts).
-scripts/            bootstrap / build / test / release. PowerShell 7.
+packaging/npm/      The npm shell package: Node launcher, package.json template, npm README.
+.github/workflows/  ci.yml (tests, dslab build), npm-publish.yml (tag -> npm publish), sigrok-runtime.yml (mint the pinned sigrok-cli zip).
+scripts/            bootstrap / build / test / release / pack-npm / pack-sigrok-cli. PowerShell 7.
 tests/              pytest. Runs without hardware.
 deps.json           Every pinned third-party input (URL + SHA-256). Single source of truth.
 ```
@@ -25,6 +27,7 @@ pwsh scripts/bootstrap.ps1          # once; fetches into .deps/ and creates .ven
 pwsh scripts/build.ps1              # dslab/build/dslab.exe + DLLs
 pwsh scripts/test.ps1               # pytest; add -RequireDecoders to forbid skips
 pwsh scripts/release.ps1            # dist/<name>.zip with all non-hardware gates
+pwsh scripts/pack-npm.ps1 -SelfTest # dist/npm/<name>-<version>.tgz for `npm publish`
 ```
 
 Python-only changes need just `.venv` and `scripts/test.ps1`; no C build.
@@ -43,7 +46,15 @@ Python-only changes need just `.venv` and `scripts/test.ps1`; no C build.
 - `logic_agent` must not import or link GPL code; it talks to `dslab.exe` / `sigrok-cli.exe` only via subprocess.
   Keep that boundary so the Python package stays MIT.
 - Tool results must stay bounded: no raw sample arrays, respect the size limits in `models.py`.
+- **The npm package is a shell over the released bundle.** `packaging/npm/launcher/*.mjs` must never
+  write to stdout (that is the JSON-RPC channel), and `package.json` must never gain `preinstall` /
+  `install` / `postinstall` scripts: installing must not download or build anything. The npm version
+  comes only from `logic_agent/__init__.py`; tags are `v<version>`.
 - **Firmware writes are dangerous.** Never call `dslab firmware install` from tests or scripts; only print the command.
+- **sigrok-cli never comes from the developer machine.** `bootstrap.ps1` downloads the zip pinned by
+  `deps.json` `sigrok_cli.url`/`sha256` and nothing else; there is no `-SigrokRoot` fallback. Re-mint the
+  pin with the `sigrok runtime` workflow (upstream only ships NSIS installers, and its nightly build keeps
+  a constant version string, so the upstream URL is not a pin on its own).
 - Hardware is a single exclusive USB device: never run hardware checks in parallel.
 
 ## Adding a protocol decoder
@@ -70,5 +81,7 @@ Implement the protocol in `logic_agent/backends/base.py`, return `CapturedSignal
 
 - `pwsh scripts/test.ps1 -RequireDecoders` passes.
 - If C or packaging changed: `pwsh scripts/build.ps1` and `pwsh scripts/release.ps1` pass.
+- If npm packaging changed: `pwsh scripts/pack-npm.ps1 -SelfTest` passes (`-SkipVerify` is enough
+  when no bundle is built; CI runs it against the real bundle).
 - Docs updated where behaviour changed; `CHANGELOG.md` has an entry under *Unreleased*.
 - Hardware-affecting changes: say in the PR whether `CHECK.cmd` / `SELF-TEST.cmd` were run on a real device.
