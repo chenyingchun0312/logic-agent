@@ -1,0 +1,139 @@
+name: npm
+
+# Builds the portable Windows bundle, repacks it as the npm package and (on a tag)
+# publishes it. The payload is Windows-only (embeddable Python, dslab.exe,
+# sigrok-cli + decoders), so this runs on windows-latest only.
+#
+# Release: bump logic_agent/__init__.py:__version__, commit, then push tag v<version>.
+# Dry run: Actions -> npm -> Run workflow (leave "publish" off); the tarball lands
+# in the run artifacts either way.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the tarball to npm (off = build the artifact only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write # npm provenance attestation
+
+concurrency:
+  group: npm-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NPM_CONFIG_FUND: false
+  NPM_CONFIG_AUDIT: false
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # provenance wants real history; deps pin DSView by commit
+
+      - name: tag must match the version
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $match = (Select-String -Path logic_agent/__init__.py -Pattern '__version__\s*=\s*"([^"]+)"').Matches
+          if (-not $match) { Write-Host '::error::cannot read __version__ from logic_agent/__init__.py'; exit 1 }
+          $version = $match[0].Groups[1].Value
+          $tag = '${{ github.ref_name }}' -replace '^v', ''
+          if ($tag -ne $version) {
+            Write-Host "::error::tag v$tag does not match __version__ $version (bump the version or retag)"
+            exit 1
+          }
+          Write-Host "releasing $version"
+
+      - name: sigrok-cli must be pinned in deps.json
+        shell: pwsh
+        run: |
+          $deps = Get-Content deps.json -Raw | ConvertFrom-Json
+          if (-not $deps.sigrok_cli.url -or -not $deps.sigrok_cli.sha256) {
+            Write-Host '::error::deps.json has no pinned sigrok_cli.url/sha256; the npm package needs a reproducible sigrok-cli'
+            Write-Host 'One-time setup: run the "sigrok runtime" workflow (Actions -> sigrok runtime -> Run workflow).'
+            Write-Host 'It mints the zip from the upstream sigrok.org installer, publishes it as a release'
+            Write-Host 'asset and commits the pin to deps.json. See docs/npm.md.'
+            exit 1
+          }
+          Write-Host "sigrok-cli $($deps.sigrok_cli.version) pinned"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - uses: msys2/setup-msys2@v2
+        id: msys2
+        with:
+          msystem: UCRT64
+          update: false
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-glib2
+            mingw-w64-ucrt-x86_64-libusb
+            mingw-w64-ucrt-x86_64-zlib
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .cache
+            .venv
+          key: npm-deps-${{ runner.os }}-${{ hashFiles('deps.json') }}
+          restore-keys: npm-deps-${{ runner.os }}-
+
+      - name: bootstrap
+        shell: pwsh
+        run: pwsh scripts/bootstrap.ps1 -Msys2Root '${{ steps.msys2.outputs.msys2-location }}'
+
+      - name: build dslab
+        shell: pwsh
+        run: pwsh scripts/build.ps1 -Msys2Root '${{ steps.msys2.outputs.msys2-location }}'
+
+      - name: test
+        shell: pwsh
+        run: pwsh scripts/test.ps1 -RequireDecoders
+
+      - name: release bundle
+        shell: pwsh
+        run: pwsh scripts/release.ps1 -NoDsviewDriver -NoDriver
+
+      - name: pack npm package
+        shell: pwsh
+        run: pwsh scripts/pack-npm.ps1 -SelfTest
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: dist/npm/*.tgz
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: publish to npm
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish
+        shell: pwsh
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if (-not $env:NODE_AUTH_TOKEN) {
+            Write-Host '::error::secret NPM_TOKEN is not set (needs an npm automation token with publish rights)'
+            exit 1
+          }
+          $tarball = Get-ChildItem dist/npm/*.tgz | Select-Object -First 1
+          Write-Host "publishing $($tarball.Name)"
+          npm publish $tarball.FullName --access public --provenance
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

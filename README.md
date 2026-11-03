@@ -9,6 +9,29 @@
 - 周期、频率、占空比、抖动测量；可导入 DSView 导出的 CSV
 - 采样率、时长、通道数和返回字符数都有硬上限
 
+## 用 npm 安装（最快）
+
+需要 Windows x64 + Node ≥ 18.17。包内自带 Python、`dslab.exe`、`sigrok-cli` 和解码器，
+不需要开发环境，也不需要先解压 zip：
+
+```powershell
+npx -y logic-agent-mcp --version
+```
+
+客户端配置就两行（Claude Desktop / Cursor / Codex 通用；Windows 上 `command` 写 `npx.cmd`，
+因为客户端不经过 shell）：
+
+```json
+{ "mcpServers": { "logic-analyzer": {
+    "command": "npx.cmd",
+    "args": ["-y", "logic-agent-mcp"]
+} } }
+```
+
+数据默认写到 `%LOCALAPPDATA%\logic-agent`；驱动仍需装一次 DSView（或用 `INSTALL-DRIVER.cmd`）。
+`os`/`cpu` 字段限定 `win32`/`x64`，其它平台会在安装时直接失败而不是装好再报错。
+细节、供应链说明和排错见 [`docs/npm.md`](docs/npm.md)。
+
 ## 使用发布包（不需要开发环境）
 
 1. 从 [Releases](../../releases) 下载 `logic-agent-dslogic-plus-v<版本>-win-x64.zip` 和同名 `.sha256`。

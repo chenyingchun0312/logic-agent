@@ -66,8 +66,8 @@ pwsh scripts/release.ps1
 ## 6. 发布
 
 ```powershell
-git tag -a v1.1.0 -m "logic-agent 1.1.0"
-git push origin v1.1.0
+git tag -a v1.2.0 -m "logic-agent 1.2.0"
+git push origin v1.2.0
 ```
 
 在 GitHub 上为该 tag 建 Release，上传 `dist/` 下的 zip、`.sha256`、`.json`，发布说明里写明：
@@ -77,11 +77,24 @@ git push origin v1.1.0
 - GPL 组件的对应源码：本仓库该 tag，加上 `deps.json` 中的 DSView 提交和 `patches/`；
 - 硬件门禁结果和已知限制（例如 CAN CRC 未校验）。
 
-## 7. 回滚
+## 7. npm 包
+
+同一份 `dist/stage/logic-agent` 还发到 npm（`logic-agent-mcp`）。tag 推上去之后
+`.github/workflows/npm-publish.yml` 会跑完整门禁并自动发布，正常发版不用手工做；手工流程：
+
+```powershell
+pwsh scripts/pack-npm.ps1 -SelfTest
+npm publish dist/npm/logic-agent-mcp-<版本>.tgz --access public
+```
+
+前提是 `deps.json` 的 `sigrok_cli.url`/`sha256` 已固定（一次性操作，见 [`npm.md`](npm.md)）；
+没固定时 workflow 会在第一步失败并打印修复命令。npm 版本号不能复用：发错了发下一个补丁版本。
+
+## 8. 回滚
 
 不要删除或覆盖已发布的 Release。发现严重问题时，把上一个版本标记为推荐版本，在 Git 上 `revert` 对应提交并发布新的补丁版本，不要强推历史。
 
-## 8. 常见坑
+## 9. 常见坑
 
 - 不要提交 `dist/`：zip 每次重打哈希都不同，仓库会迅速膨胀。
 - 不要只替换 `dslab.exe`：DLL、`res/`、文档要一起来自同一次 `release.ps1`。

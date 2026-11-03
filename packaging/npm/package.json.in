@@ -1,0 +1,56 @@
+{
+  "name": "@@NAME@@",
+  "version": "@@VERSION@@",
+  "description": "MCP server that lets AI agents drive a logic analyzer (DSLogic Plus, sigrok, mock) without putting raw waveforms into the model context.",
+  "license": "MIT AND GPL-3.0-or-later",
+  "author": "chenyingchun0312",
+  "homepage": "https://github.com/chenyingchun0312/logic-agent#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chenyingchun0312/logic-agent.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chenyingchun0312/logic-agent/issues"
+  },
+  "type": "module",
+  "bin": {
+    "logic-agent-mcp": "launcher/logic-agent-mcp.mjs"
+  },
+  "files": [
+    "launcher/",
+    "runtime/",
+    "firmware/",
+    "docs/",
+    "scripts/",
+    "*.cmd",
+    "VERSION.txt",
+    "checksums.sha256",
+    "README.md",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md"
+  ],
+  "engines": {
+    "node": ">=18.17"
+  },
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "logic-analyzer",
+    "logic-analyzer-mcp",
+    "sigrok",
+    "dslogic",
+    "i2c",
+    "spi",
+    "uart",
+    "hardware-debugging"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
