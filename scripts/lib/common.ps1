@@ -137,8 +137,12 @@ minting never depends on a developer machine.
     }
     if (Test-Path -LiteralPath $Dest) { Remove-Item -LiteralPath $Dest -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $Dest | Out-Null
-    & $sevenZip x -y -bb0 "-o$Dest" $Installer
-    if ($LASTEXITCODE -ne 0) { throw "7-Zip failed to extract $Installer (exit $LASTEXITCODE)" }
+    # Capture 7-Zip's banner/progress: emitting it here would make the function
+    # return the log lines instead of $Dest (the caller then saw a bogus "drive").
+    $log = & $sevenZip x -y -bb0 "-o$Dest" $Installer 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "7-Zip failed to extract $Installer (exit $LASTEXITCODE): $($log -join ' | ')"
+    }
     foreach ($need in 'sigrok-cli.exe', 'share\libsigrokdecode\decoders\i2c\pd.py') {
         if (-not (Test-Path -LiteralPath (Join-Path $Dest $need))) {
             throw "extracted tree has no ${need}: $Dest"
