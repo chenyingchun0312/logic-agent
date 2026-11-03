@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-03
+
 ### Added
 - `logic-agent mcp-install`（发布包里的 `INSTALL-MCP.cmd`）：一条命令把 `logic-analyzer` 加进本机的 Codex、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf 和 Cline。默认只处理检测到的客户端，合并写入（其它 server 原样保留），配置无法解析时报告且不覆盖，写完用真实 `initialize` + `capabilities` 验证启动。支持 `--list`、`--dry-run`、`--remove`、`--scope project`、`--json`、`--backend`、`--data-dir`。
 - `docs/mcp-clients.md`（发布包内 `docs\MCP-CLIENTS.md`）：客户端配置位置、手动 JSON/TOML、常见排错。
