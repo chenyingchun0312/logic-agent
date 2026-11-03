@@ -92,12 +92,15 @@ if (-not $SkipMcp) {
     # config is never touched, then proves the launch spec is self-contained:
     # no cmd.exe, no DSLAB_* env, absolute paths only.
     $fakeHome = Join-Path $Root 'runs\mcp-install-home'
-    foreach ($dir in '.codex', '.kiro') { New-Item -ItemType Directory -Force -Path (Join-Path $fakeHome $dir) | Out-Null }
+    foreach ($dir in '.codex', '.kiro', '.dsh\profiles\desktop') {
+        New-Item -ItemType Directory -Force -Path (Join-Path $fakeHome $dir) | Out-Null
+    }
     $setupText = & $python -m logic_agent.cli mcp-install --home $fakeHome --no-verify --json 2>&1 | Out-String
     $setup = $null
     try { $setup = $setupText | ConvertFrom-Json } catch { $setup = $null }
     $codexConfig = Join-Path $fakeHome '.codex\config.toml'
     $kiroConfig = Join-Path $fakeHome '.kiro\settings\mcp.json'
+    $dshConfig = Join-Path $fakeHome '.dsh\profiles\desktop\cordis.patch.yml'
     $kiroEntry = $null
     if (Test-Path -LiteralPath $kiroConfig) {
         $kiroEntry = (Get-Content -LiteralPath $kiroConfig -Raw | ConvertFrom-Json).mcpServers.'logic-analyzer'
@@ -112,7 +115,18 @@ if (-not $SkipMcp) {
     }
     $entryOk = $null -ne $kiroEntry -and $kiroEntry.command -eq $setup.launch.command -and
         (@($kiroEntry.args) -contains 'logic_agent.mcp_server')
-    Add-Check 'mcp-install' ([bool]$setup -and $setup.ok -and $launchOk -and $entryOk -and (Test-Path -LiteralPath $codexConfig)) $setupText.Trim()
+    # DeepSeek Harness: the YAML patch layer must carry our marked entry and keep
+    # a valid top-level list (no YAML parser in the bundle, so check the shape).
+    $dshOk = $false
+    if (Test-Path -LiteralPath $dshConfig) {
+        $dsh = Get-Content -LiteralPath $dshConfig -Raw
+        $dshOk = $dsh -match 'id: mcp-logic-agent' -and
+            $dsh -match '@deepseek-ai/dsh-mcp-client' -and
+            $dsh -match 'serverName: logic' -and
+            $dsh -match '(?m)^- insert:' -and
+            ([regex]::Matches($dsh, '>>> logic-agent').Count -eq 1)
+    }
+    Add-Check 'mcp-install' ([bool]$setup -and $setup.ok -and $launchOk -and $entryOk -and $dshOk -and (Test-Path -LiteralPath $codexConfig)) $setupText.Trim()
     Remove-Item -LiteralPath $fakeHome -Recurse -Force -ErrorAction SilentlyContinue
 }
 

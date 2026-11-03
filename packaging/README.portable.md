@@ -64,7 +64,7 @@ CAPTURE.cmd --channels D0 --rate 1M --samples 10000 --out data\my-capture --json
 
 ## AI / MCP 接入
 
-双击 `INSTALL-MCP.cmd`，一条命令完成：检测本机安装的 Codex、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf、Cline，把 `logic-analyzer` 合并写进各自配置，并真实启动一次服务验证 `capabilities`。
+双击 `INSTALL-MCP.cmd`，一条命令完成：检测本机安装的 Codex、DeepSeek Harness、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf、Cline，把 `logic-analyzer` 合并写进各自配置，并真实启动一次服务验证 `capabilities`。
 
 ```powershell
 INSTALL-MCP.cmd              # 检测 + 写入 + 验证

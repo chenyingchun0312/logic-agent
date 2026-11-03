@@ -14,7 +14,7 @@
 1. 从 [Releases](../../releases) 下载 `logic-agent-dslogic-plus-v<版本>-win-x64.zip` 和同名 `.sha256`。
 2. 解压到英文路径，例如 `D:\tools\logic-agent`。
 3. 依次运行 `VERIFY-FILES.cmd`、`CHECK.cmd`、`SELF-TEST.cmd`，都应输出顶层 `"ok": true`。设备不认时先运行 `INSTALL-DRIVER.cmd`。
-4. 双击 `INSTALL-MCP.cmd`：自动检测本机的 Codex、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf、Cline，把 `logic-analyzer` 写进各自的配置，并真实启动一次服务验证 `capabilities`。
+4. 双击 `INSTALL-MCP.cmd`：自动检测本机的 Codex、DeepSeek Harness、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf、Cline，把 `logic-analyzer` 写进各自的配置，并真实启动一次服务验证 `capabilities`。
 
 `INSTALL-MCP.cmd --list` 看会写哪些文件，`--dry-run` 只打印可粘贴的配置，`--remove` 删除这条配置。细节和手动配置见 [`docs/mcp-clients.md`](docs/mcp-clients.md)。
 

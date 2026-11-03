@@ -18,6 +18,9 @@ from logic_agent.cli import main
 from logic_agent.mcp_clients import (
     CLIENT_IDS,
     CODEX_SERVER_NAME,
+    DSH_ITEM_ID,
+    DSH_MARK_END,
+    DSH_MARK_START,
     SERVER_NAME,
     LaunchSpec,
     Locations,
@@ -27,6 +30,29 @@ from logic_agent.mcp_clients import (
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# Shaped like a real DeepSeek Harness profile: other plugins plus a hand-written
+# logic-analyzer entry that the installer should adopt rather than duplicate.
+DSH_PROFILE = """\
+- id: ui-theme
+  name: "@deepseek-ai/dsh-client-ui-theme"
+  config:
+    preference: dark
+# DSLogic 逻辑分析仪的 MCP 服务
+- insert:
+    - id: mcp-logic-agent
+      name: "@deepseek-ai/dsh-mcp-client"
+      config:
+        serverName: logic
+        transport: stdio
+        command: cmd
+        args:
+          - "/c"
+          - "D:\\\\workspace\\\\mcp\\\\logic-agent\\\\MCP.cmd"
+        cwd: "D:\\\\workspace\\\\mcp\\\\logic-agent"
+        toolCallTimeoutMs: 120000
+        failOnStartupError: false
+"""
 
 
 def _locations(tmp_path: Path, *, cwd: Path | None = None) -> Locations:
@@ -341,3 +367,122 @@ def test_cli_dry_run_reports_preview(tmp_path, capsys):
     assert "nothing was written" in output
     assert "Press any key" not in output
     assert f"[mcp_servers.{CODEX_SERVER_NAME}]" in output
+
+def _dsh_profile(loc: Locations) -> Path:
+    profile = loc.home / ".dsh" / "profiles" / "desktop"
+    profile.mkdir(parents=True, exist_ok=True)
+    return profile
+
+
+def test_deepseek_harness_creates_managed_block(tmp_path):
+    loc = _locations(tmp_path)
+    profile = _dsh_profile(loc)
+
+    result = install(locations=loc, verify=False)
+
+    assert [item.id for item in result.results] == ["deepseek-harness"]
+    assert result.results[0].status == "written"
+    target = profile / "cordis.patch.yml"
+    text = target.read_text(encoding="utf-8")
+    assert DSH_MARK_START in text and DSH_MARK_END in text
+    assert f"id: {DSH_ITEM_ID}" in text
+    assert 'name: "@deepseek-ai/dsh-mcp-client"' in text
+    assert "serverName: logic" in text
+    assert "transport: stdio" in text
+    assert "toolCallTimeoutMs: 120000" in text
+    assert "failOnStartupError: false" in text
+    assert "-m" in text and "logic_agent.mcp_server" in text
+    # YAML double-quoted scalars escape every backslash.
+    assert result.launch.command.replace("\\", "\\\\") in text
+
+
+def test_deepseek_harness_is_idempotent(tmp_path):
+    loc = _locations(tmp_path)
+    _dsh_profile(loc)
+
+    first = install(locations=loc, verify=False)
+    second = install(locations=loc, verify=False)
+
+    assert first.results[0].status == "written"
+    assert second.results[0].status == "unchanged"
+    text = (loc.home / ".dsh" / "profiles" / "desktop" / "cordis.patch.yml").read_text(encoding="utf-8")
+    assert text.count(DSH_MARK_START) == 1
+    assert text.count("@deepseek-ai/dsh-mcp-client") == 1
+
+
+def test_deepseek_harness_adopts_hand_written_entry(tmp_path):
+    loc = _locations(tmp_path)
+    profile = _dsh_profile(loc)
+    target = profile / "cordis.patch.yml"
+    target.write_text(DSH_PROFILE, encoding="utf-8")
+
+    result = install(locations=loc, verify=False)
+
+    assert result.results[0].status == "written"
+    text = target.read_text(encoding="utf-8")
+    assert text.count("@deepseek-ai/dsh-mcp-client") == 1
+    assert "workspace" not in text, "the stale hand-written path should be replaced"
+    assert "- id: ui-theme" in text, "unrelated plugins must survive"
+    assert text.count(DSH_MARK_START) == 1
+    backup = profile / "cordis.patch.yml.bak"
+    assert backup.is_file() and backup.read_text(encoding="utf-8") == DSH_PROFILE
+
+
+def test_deepseek_harness_remove_restores_an_empty_patch_file(tmp_path):
+    loc = _locations(tmp_path)
+    profile = _dsh_profile(loc)
+    target = profile / "cordis.patch.yml"
+
+    install(locations=loc, verify=False)
+    removed = install(locations=loc, remove=True, verify=False)
+
+    assert removed.results[0].status == "removed"
+    assert target.read_text(encoding="utf-8").strip() == "[]"
+    assert install(locations=loc, remove=True, verify=False).results[0].status == "absent"
+
+
+def test_deepseek_harness_remove_keeps_other_plugins(tmp_path):
+    loc = _locations(tmp_path)
+    profile = _dsh_profile(loc)
+    target = profile / "cordis.patch.yml"
+    target.write_text(DSH_PROFILE, encoding="utf-8")
+
+    install(locations=loc, verify=False)
+    install(locations=loc, remove=True, verify=False)
+
+    text = target.read_text(encoding="utf-8")
+    assert "@deepseek-ai/dsh-mcp-client" not in text
+    assert "- id: ui-theme" in text
+
+
+def test_deepseek_harness_refuses_a_non_sequence_file(tmp_path):
+    loc = _locations(tmp_path)
+    profile = _dsh_profile(loc)
+    target = profile / "cordis.patch.yml"
+    target.write_text("foo: bar\n", encoding="utf-8")
+
+    result = install(locations=loc, verify=False)
+
+    assert result.ok is False
+    assert result.results[0].status == "error"
+    assert "YAML" in result.results[0].detail
+    assert target.read_text(encoding="utf-8") == "foo: bar\n"
+
+
+def test_deepseek_harness_dry_run_writes_nothing(tmp_path):
+    loc = _locations(tmp_path)
+    profile = _dsh_profile(loc)
+
+    result = install(locations=loc, dry_run=True, verify=False)
+
+    assert result.results[0].status == "dry-run"
+    assert DSH_MARK_START in result.results[0].detail
+    assert not (profile / "cordis.patch.yml").exists()
+
+
+def test_deepseek_harness_has_no_project_scope(tmp_path):
+    loc = _locations(tmp_path)
+
+    result = install(locations=loc, scope="project", only=["deepseek-harness"], verify=False)
+
+    assert result.results[0].status == "skipped"

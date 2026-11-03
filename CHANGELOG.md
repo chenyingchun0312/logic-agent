@@ -8,8 +8,9 @@
 ## [1.2.0] - 2026-11-03
 
 ### Added
-- `logic-agent mcp-install`（发布包里的 `INSTALL-MCP.cmd`）：一条命令把 `logic-analyzer` 加进本机的 Codex、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf 和 Cline。默认只处理检测到的客户端，合并写入（其它 server 原样保留），配置无法解析时报告且不覆盖，写完用真实 `initialize` + `capabilities` 验证启动。支持 `--list`、`--dry-run`、`--remove`、`--scope project`、`--json`、`--backend`、`--data-dir`。
+- `logic-agent mcp-install`（发布包里的 `INSTALL-MCP.cmd`）：一条命令把 `logic-analyzer` 加进本机的 Codex、DeepSeek Harness、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf 和 Cline。默认只处理检测到的客户端，合并写入（其它 server 原样保留），配置无法解析时报告且不覆盖，写完用真实 `initialize` + `capabilities` 验证启动。支持 `--list`、`--dry-run`、`--remove`、`--scope project`、`--json`、`--backend`、`--data-dir`。
 - `docs/mcp-clients.md`（发布包内 `docs\MCP-CLIENTS.md`）：客户端配置位置、手动 JSON/TOML、常见排错。
+- `deepseek-harness`：DeepSeek Harness 的 MCP 配置是 `~/.dsh/profiles/desktop/cordis.patch.yml` 这个 Cordis YAML 补丁层，安装器维护一个带标记的 `@deepseek-ai/dsh-mcp-client` 条目；已经有手写条目时原地接管并备份，重复运行只替换标记块，`--remove` 只删这一块，文件顶层不是 YAML 列表时拒绝写入。
 - `CHECK.cmd` 增加 `mcp-install` 门禁：在临时 home 里写入配置，确认启动命令是包内解释器、不经过 `cmd.exe`、也不依赖 `DSLAB_*` 环境变量。
 
 ### Changed

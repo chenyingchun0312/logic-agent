@@ -47,7 +47,7 @@ CAPTURE.cmd --channels D0,D1 --rate 10M --trigger D0=R --trigger-pos 10 --durati
 
 ## AI/MCP
 
-双击 `INSTALL-MCP.cmd`。它会检测本机的 Codex、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf、Cline，把 `logic-analyzer` 合并写进各自的配置，然后真实启动一次 MCP 服务确认能回答 `capabilities`。
+双击 `INSTALL-MCP.cmd`。它会检测本机的 Codex、DeepSeek Harness、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf、Cline，把 `logic-analyzer` 合并写进各自的配置，然后真实启动一次 MCP 服务确认能回答 `capabilities`。
 
 ```powershell
 INSTALL-MCP.cmd --list       # 看装了哪些客户端、配置写到哪个文件

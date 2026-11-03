@@ -45,6 +45,7 @@ Next: restart the app, then ask the agent to call the "capabilities" tool.
 | `id` | 客户端 | 用户级配置 | 项目级配置 |
 |---|---|---|---|
 | `codex` | Codex CLI | `~/.codex/config.toml`（`[mcp_servers.logic_analyzer]`） | — |
+| `deepseek-harness` | DeepSeek Harness | `~/.dsh/profiles/desktop/cordis.patch.yml`（Cordis 补丁层，`@deepseek-ai/dsh-mcp-client`） | — |
 | `claude-code` | Claude Code | `~/.claude.json` | `.mcp.json` |
 | `claude-desktop` | Claude Desktop | `%APPDATA%\Claude\claude_desktop_config.json` | — |
 | `copilot-cli` | GitHub Copilot CLI | `~/.copilot/mcp-config.json`（`COPILOT_HOME` 优先，含 `"type": "local"` 和 `"tools": ["*"]`） | `.mcp.json` |
@@ -55,6 +56,38 @@ Next: restart the app, then ask the agent to call the "capabilities" tool.
 | `cline` | Cline（VS Code 扩展） | `%APPDATA%\Code\User\globalStorage\saoudrizwan.claude-dev\settings\cline_mcp_settings.json` | — |
 
 JSON 客户端里的名字是 `logic-analyzer`（会变成 `mcp__logic-analyzer__capture` 这样的工具前缀）；Codex 的 TOML 表沿用 `logic_analyzer`，这样已经按旧文档配置过的用户不会被写重复条目。
+
+## DeepSeek Harness（`deepseek-harness`）
+
+DSH 的 MCP 配置不是 JSON，而是 profile 里的一个 **Cordis 补丁层**（YAML 数组）。安装器在 `~/.dsh/profiles/desktop/cordis.patch.yml` 末尾维护一个带标记的条目：
+
+```yaml
+# >>> logic-agent (managed by INSTALL-MCP.cmd) >>>
+- insert:
+    - id: mcp-logic-agent
+      name: "@deepseek-ai/dsh-mcp-client"
+      config:
+        serverName: logic
+        transport: stdio
+        command: "D:\\tools\\logic-agent\\runtime\\python\\python.exe"
+        args:
+          - "-m"
+          - "logic_agent.mcp_server"
+          - "--data-dir"
+          - "D:\\tools\\logic-agent\\data\\captures"
+        cwd: "D:\\tools\\logic-agent"
+        toolCallTimeoutMs: 120000
+        failOnStartupError: false
+# <<< logic-agent <<<
+```
+
+几个约定：
+
+- 工具名会变成 `mcp__logic__capture` 这种形式（`serverName: logic`）。
+- **已有手写条目会被接管**：如果你之前手动加过 `@deepseek-ai/dsh-mcp-client`，安装器会原地替换那一条（不会变成两个 server），替换前把原文件备份成 `cordis.patch.yml.bak`。
+- 重复运行只替换标记块里的内容；`--remove` 只删这一块，其它插件（`ui-theme` 等）原样保留；删完只剩空内容时写回 `[]`。
+- 文件顶层不是 YAML 数组时**拒绝写入**并报错，不会尝试"修好"它。
+- 改完**要重启 DeepSeek Harness**（或新建会话），配置在启动时加载。
 
 客户端的配置文件位置随版本变化。以 `logic-agent mcp-install --list` 打印的路径为准；那份输出就是本工具这次会写的文件。
 

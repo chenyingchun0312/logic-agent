@@ -38,6 +38,17 @@ SERVER_NAME = "logic-analyzer"
 CODEX_SERVER_NAME = "logic_analyzer"
 SCOPES = ("user", "project")
 
+# DeepSeek Harness stores MCP servers as a Cordis YAML patch layer. We own one
+# delimited entry so repeat runs replace it and --remove deletes exactly that.
+DSH_SERVER_NAME = "logic"
+DSH_ITEM_ID = "mcp-logic-agent"
+DSH_MARK_START = "# >>> logic-agent (managed by INSTALL-MCP.cmd) >>>"
+DSH_MARK_END = "# <<< logic-agent <<<"
+DSH_MANAGED = re.compile(
+    r"# >>> logic-agent[^\n]*\n.*?# <<< logic-agent[^\n]*\n?",
+    re.DOTALL,
+)
+
 
 # --------------------------------------------------------------------------- locations
 
@@ -101,7 +112,7 @@ class ClientSpec:
 
     id: str
     label: str
-    fmt: str  # "json" | "toml"
+    fmt: str  # "json" | "toml" | "yaml"
     container: str  # JSON key or TOML table that holds the servers
     user: str  # user-scope config path template
     project: str | None  # project-scope config path template (None: user only)
@@ -125,6 +136,19 @@ CLIENTS: tuple[ClientSpec, ...] = (
         stype=None,
         extra={},
         hint="restart Codex, then /mcp (or `codex mcp list`)",
+    ),
+    ClientSpec(
+        id="deepseek-harness",
+        label="DeepSeek Harness",
+        fmt="yaml",
+        container="insert",
+        user="{home}/.dsh/profiles/desktop/cordis.patch.yml",
+        project=None,
+        detect=("{home}/.dsh/profiles/desktop",),
+        binary=None,
+        stype=None,
+        extra={},
+        hint="restart DeepSeek Harness; the tools show up as mcp__logic__*",
     ),
     ClientSpec(
         id="claude-code",
@@ -506,6 +530,120 @@ def install_toml(path: Path, spec: ClientSpec, launch: LaunchSpec, *, remove: bo
     return "written"
 
 
+def _yaml_string(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def dsh_item(launch: LaunchSpec) -> str:
+    """The Cordis patch entry that gives DeepSeek Harness the logic analyzer."""
+    cwd = launch.root or str(Path(__file__).resolve().parent.parent)
+    lines = [
+        "- insert:",
+        f"    - id: {DSH_ITEM_ID}",
+        '      name: "@deepseek-ai/dsh-mcp-client"',
+        "      config:",
+        f"        serverName: {DSH_SERVER_NAME}",
+        "        transport: stdio",
+        f"        command: {_yaml_string(launch.command)}",
+        "        args:",
+        *(f"          - {_yaml_string(item)}" for item in launch.args),
+        f"        cwd: {_yaml_string(cwd)}",
+        "        toolCallTimeoutMs: 120000",
+        "        failOnStartupError: false",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+def dsh_block(launch: LaunchSpec) -> str:
+    return f"{DSH_MARK_START}\n{dsh_item(launch)}{DSH_MARK_END}\n"
+
+
+def _strip_managed_yaml(text: str) -> tuple[str, bool]:
+    if DSH_MARK_START not in text:
+        return text, False
+    stripped = DSH_MANAGED.sub("", text)
+    stripped = re.sub(r"\n{3,}", "\n\n", stripped).rstrip("\n")
+    return (stripped + "\n") if stripped else "", True
+
+
+def _is_yaml_sequence(text: str) -> bool:
+    """Accept empty files, ``[]`` and documents whose first token is a sequence item."""
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        return stripped.startswith("- ") or stripped == "-" or stripped.startswith("[")
+    return True
+
+
+def _yaml_items(text: str) -> list[tuple[int, int]]:
+    """(start, end) line ranges of the top-level ``- ...`` entries."""
+    lines = text.splitlines(keepends=True)
+    starts = [index for index, line in enumerate(lines) if line.startswith("- ")]
+    spans: list[tuple[int, int]] = []
+    for position, start in enumerate(starts):
+        end = starts[position + 1] if position + 1 < len(starts) else len(lines)
+        spans.append((start, end))
+    return spans
+
+
+def _find_dsh_item(text: str) -> tuple[int, int] | None:
+    """Locate a hand-written logic-analyzer entry so we can adopt it instead of duplicating."""
+    lines = text.splitlines(keepends=True)
+    for start, end in _yaml_items(text):
+        chunk = "".join(lines[start:end])
+        if "@deepseek-ai/dsh-mcp-client" not in chunk:
+            continue
+        if f"id: {DSH_ITEM_ID}" in chunk or f"serverName: {DSH_SERVER_NAME}" in chunk:
+            return start, end
+    return None
+
+
+def _backup(path: Path, text: str) -> None:
+    if not text.strip():
+        return
+    _atomic_write(path.with_name(path.name + ".bak"), text)
+
+
+def install_yaml(path: Path, spec: ClientSpec, launch: LaunchSpec, *, remove: bool = False) -> str:
+    text = _read_text(path) if path.exists() else ""
+    remaining, had_block = _strip_managed_yaml(text)
+    if remove:
+        if not had_block:
+            return "absent"
+        _atomic_write(path, remaining if remaining.strip() else "[]\n")
+        return "written"
+
+    if not _is_yaml_sequence(remaining):
+        raise ConfigError(f"{path} 的顶层不是 YAML 列表，拒绝写入（未修改）")
+
+    block = dsh_block(launch)
+    if had_block:
+        result = (remaining.rstrip("\n") + "\n\n" + block) if remaining.strip() else block
+    else:
+        span = _find_dsh_item(text)
+        if span is not None:
+            # Adopt the hand-written entry: same server, but now owned by the installer.
+            start, end = span
+            lines = text.splitlines(keepends=True)
+            suffix = "".join(lines[end:])
+            result = "".join(lines[:start]) + block + ("\n" + suffix if suffix.strip() else "")
+            _backup(path, text)
+        elif text.strip():
+            result = text.rstrip("\n") + "\n\n" + block
+            _backup(path, text)
+        else:
+            result = block
+
+    if result == text:
+        return "unchanged"
+    if not _is_yaml_sequence(result):
+        raise ConfigError(f"{path}: 写入后不再是 YAML 列表，已放弃（未修改）")
+    _atomic_write(path, result)
+    return "written"
+
+
 def apply_client(
     spec: ClientSpec,
     launch: LaunchSpec,
@@ -518,6 +656,8 @@ def apply_client(
         return "dry-run", snippet(spec, launch, path)
     if spec.fmt == "toml":
         status = install_toml(path, spec, launch, remove=remove)
+    elif spec.fmt == "yaml":
+        status = install_yaml(path, spec, launch, remove=remove)
     else:
         status = install_json(path, spec, launch, remove=remove)
     if remove and status == "written":
@@ -528,6 +668,8 @@ def apply_client(
 def snippet(spec: ClientSpec, launch: LaunchSpec, path: Path) -> str:
     if spec.fmt == "toml":
         return f"# {path}\n" + toml_block(spec, launch)
+    if spec.fmt == "yaml":
+        return f"# {path}\n" + dsh_block(launch)
     document = {spec.container: {SERVER_NAME: server_entry(spec, launch)}}
     return f"// {path}\n" + json.dumps(document, indent=2, ensure_ascii=False)
 
