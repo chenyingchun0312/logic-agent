@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-03
+
 ### Added
 - `scripts/pack-npm.ps1` + `packaging/npm/`：把发布包原样打成 npm 包（`npx -y logic-agent-mcp`）。Node 启动器只转发 stdio、绝不写 stdout；打包时按 npm 树重算 `checksums.sha256`；`-SelfTest` 会真跑 `--version` 和一次 `initialize`。客户端不再需要绝对路径。
 - `.github/workflows/npm-publish.yml`：tag `v<version>` 触发，先校验 tag 与 `__version__` 一致、`deps.json` 已固定 sigrok-cli，再跑 bootstrap/build/test/release/pack，最后 `npm publish --provenance`；手动触发可只出 artifact 不发包。

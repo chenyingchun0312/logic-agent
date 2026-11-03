@@ -66,8 +66,8 @@ pwsh scripts/release.ps1
 ## 6. 发布
 
 ```powershell
-git tag -a v1.2.0 -m "logic-agent 1.2.0"
-git push origin v1.2.0
+git tag -a v1.2.1 -m "logic-agent 1.2.1"
+git push origin v1.2.1
 ```
 
 在 GitHub 上为该 tag 建 Release，上传 `dist/` 下的 zip、`.sha256`、`.json`，发布说明里写明：
