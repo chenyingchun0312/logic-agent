@@ -23,11 +23,11 @@
   },
   "sigrok_cli": {
     "version": "0.8.0-git-f44dd91",
-    "url": "",
-    "sha256": "",
+    "url": "https://github.com/chenyingchun0312/logic-agent/releases/download/sigrok-runtime-20261103/sigrok-cli-0.8.0-git-f44dd91-20261103-win64.zip",
+    "sha256": "0349b419c9b0277fd9fffaba6e0c107fbe0d3d8f8162eb912dfd93e01cfaa9ed",
     "upstream": {
       "url": "https://sigrok.org/download/binary/sigrok-cli/sigrok-cli-NIGHTLY-x86_64-release-installer.exe",
-      "sha256": "",
+      "sha256": "0d92d56aa55821a172401e436f1fb4773108430c11903822ac1d4a23fb105ae2",
       "_comment": "Upstream NSIS installer the pinned runtime is minted from. Only scripts/pack-sigrok-cli.ps1 reads it; bootstrap.ps1 never downloads it."
     },
     "_comment": "Repackaged minimal runtime made by scripts/pack-sigrok-cli.ps1 and uploaded as a GitHub release asset. Empty url means 'not minted yet': bootstrap then stops with instructions - nothing is ever copied from a local machine."
