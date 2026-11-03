@@ -224,7 +224,13 @@ function Copy-SigrokRuntime([string]$SourceRoot, [string]$Dest, [switch]$SkipVer
     if (Test-Path -LiteralPath $copying) { Copy-Item -LiteralPath $copying -Destination (Join-Path $Dest 'COPYING') }
     $version = 'unknown (version probe skipped)'
     if (-not $SkipVersionProbe) {
-        $version = (& (Join-Path $bin 'sigrok-cli.exe') --version 2>&1 | Select-Object -First 1)
+        $probeOut = (& (Join-Path $bin 'sigrok-cli.exe') --version 2>&1 | Select-Object -First 1)
+        $probeExit = $LASTEXITCODE
+        $version = if ($null -ne $probeOut -and ([string]$probeOut).Trim()) {
+            [string]$probeOut
+        } else {
+            "unknown (version probe produced no output, exit $probeExit)"
+        }
     }
     Set-Content -LiteralPath (Join-Path $Dest 'VERSION.txt') -Value $version -Encoding utf8
 }

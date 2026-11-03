@@ -93,7 +93,9 @@ sigrok-cli-NIGHTLY-x86_64-release-installer.exe). The default path is the
     Copy-SigrokRuntime -SourceRoot $src -Dest $normalised -SkipVersionProbe:$SkipVersionProbe
 
     # ------------------------------------------------------------ version
-    $probe = (Get-Content -LiteralPath (Join-Path $normalised 'VERSION.txt') -Raw).Trim()
+    $versionFile = Join-Path $normalised 'VERSION.txt'
+    $probeText = if (Test-Path -LiteralPath $versionFile) { Get-Content -LiteralPath $versionFile -Raw } else { '' }
+    $probe = ([string]$probeText).Trim()
     $detected = ''
     if ($probe -match '(\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z._-]+)?)') { $detected = $Matches[1] }
     $pinned = $deps.sigrok_cli.version
