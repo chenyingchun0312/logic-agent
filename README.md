@@ -9,10 +9,10 @@
 - 周期、频率、占空比、抖动测量；可导入 DSView 导出的 CSV
 - 采样率、时长、通道数和返回字符数都有硬上限
 
-## 用 npm 安装（最快）
+## 安装（npm）
 
 需要 Windows x64 + Node ≥ 18.17。包内自带 Python、`dslab.exe`、`sigrok-cli` 和解码器，
-不需要开发环境，也不需要先解压 zip：
+不需要开发环境，也不需要自己配 Python 或 sigrok-cli：
 
 ```powershell
 npx -y logic-agent-mcp --version
@@ -28,46 +28,18 @@ npx -y logic-agent-mcp --version
 } } }
 ```
 
-数据默认写到 `%LOCALAPPDATA%\logic-agent`；驱动仍需装一次 DSView（或用 `INSTALL-DRIVER.cmd`）。
-`os`/`cpu` 字段限定 `win32`/`x64`，其它平台会在安装时直接失败而不是装好再报错。
-细节、供应链说明和排错见 [`docs/npm.md`](docs/npm.md)。
+**驱动**：npm 包不带 USB 驱动，仍需装一次 [DSView](https://www.dreamsourcelab.com/download/)（或用 Zadig 装 libusb/WinUSB）。
 
-## 使用发布包（不需要开发环境）
+**没有硬件也能先验证配置**：`npx -y logic-agent-mcp --backend mock` 提供合成波形。
 
-1. 从 [Releases](../../releases) 下载 `logic-agent-dslogic-plus-v<版本>-win-x64.zip` 和同名 `.sha256`。
-2. 解压到英文路径，例如 `D:\tools\logic-agent`。
-3. 依次运行 `VERIFY-FILES.cmd`、`CHECK.cmd`、`SELF-TEST.cmd`，都应输出顶层 `"ok": true`。设备不认时先运行 `INSTALL-DRIVER.cmd`。
-4. 双击 `INSTALL-MCP.cmd`：自动检测本机的 Codex、DeepSeek Harness、Claude Code、Claude Desktop、GitHub Copilot（VS Code / CLI）、Cursor、Kiro、Windsurf、Cline，把 `logic-analyzer` 写进各自的配置，并真实启动一次服务验证 `capabilities`。
+其它约定：
 
-`INSTALL-MCP.cmd --list` 看会写哪些文件，`--dry-run` 只打印可粘贴的配置，`--remove` 删除这条配置。细节和手动配置见 [`docs/mcp-clients.md`](docs/mcp-clients.md)。
+- 采集数据默认写到 `%LOCALAPPDATA%\logic-agent`，可用 `--data-dir` 改。
+- 包只声明 `win32`/`x64`，macOS/Linux 会在 `npm install` 时直接失败，而不是装好再报错。
+- PowerShell 里若提示“因为在此系统上禁止运行脚本”（指向 `npm.ps1`/`npx.ps1`），把命令写成 `npm.cmd` / `npx.cmd`。
 
-没有检测到你用的客户端时，直接粘贴等价配置（把路径换成实际目录）：
-
-```toml
-# Codex: ~/.codex/config.toml
-[mcp_servers.logic_analyzer]
-command = "D:/tools/logic-agent/runtime/python/python.exe"
-args = ["-m", "logic_agent.mcp_server", "--data-dir", "D:/tools/logic-agent/data/captures"]
-```
-
-```json
-// Claude Desktop / Kiro / Cursor / Windsurf / Cline
-{ "mcpServers": { "logic-analyzer": {
-    "command": "D:/tools/logic-agent/runtime/python/python.exe",
-    "args": ["-m", "logic_agent.mcp_server", "--data-dir", "D:/tools/logic-agent/data/captures"]
-} } }
-```
-
-```json
-// VS Code Copilot: .vscode/mcp.json（注意是 servers，且需要 type）
-{ "servers": { "logic-analyzer": {
-    "type": "stdio",
-    "command": "D:/tools/logic-agent/runtime/python/python.exe",
-    "args": ["-m", "logic_agent.mcp_server", "--data-dir", "D:/tools/logic-agent/data/captures"]
-} } }
-```
-
-包内的 `docs/INSTALL.md`、`MCP-CLIENTS.md`、`DRIVER.md`、`FIRMWARE.md`、`TROUBLESHOOTING.md` 有详细说明。
+细节、供应链说明和排错见 [`docs/npm.md`](docs/npm.md)；各客户端配置见 [`docs/mcp-clients.md`](docs/mcp-clients.md)。
+没有 Node 的环境仍可用同内容的便携 zip，见 [Releases](../../releases)。
 
 ## 从源码构建
 
@@ -79,7 +51,7 @@ cd logic-agent
 pwsh scripts/bootstrap.ps1             # 拉取 DSView、固件、sigrok-cli、Python、MSYS2 到 .deps/
 pwsh scripts/build.ps1                 # 编译 dslab/build/dslab.exe
 pwsh scripts/test.ps1 -RequireDecoders # 跑全部测试，不允许 skip
-pwsh scripts/release.ps1               # 生成 dist/*.zip
+pwsh scripts/release.ps1               # 生成 dist/*.zip 与 dist/stage（npm 包的来源）
 ```
 
 所有第三方输入的版本和 SHA-256 都固定在 [`deps.json`](deps.json)。只改 Python 代码时不需要编译 C。内网镜像、离线环境和贡献流程见 [`CONTRIBUTING.md`](CONTRIBUTING.md)；给 AI 编码代理的约定见 [`AGENTS.md`](AGENTS.md)。
@@ -141,6 +113,7 @@ logic_agent  (Python 标准库，MIT)
 ## 维护
 
 - 发布流程：[`docs/release-process.md`](docs/release-process.md)
+- npm 包（内容、发布、排错）：[`docs/npm.md`](docs/npm.md)
 - DSView / 解码器升级：[`docs/upstream-sync.md`](docs/upstream-sync.md)
 - 变更记录：[`CHANGELOG.md`](CHANGELOG.md)
 

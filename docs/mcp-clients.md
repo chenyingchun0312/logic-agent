@@ -2,6 +2,19 @@
 
 目标：一条命令把 `logic-analyzer` 加进本机所有支持 MCP 的 Agent，并且当场验证它能启动、能回答 `capabilities`。
 
+## npm 包（推荐）
+
+用 npm 包时不需要 `INSTALL-MCP.cmd`，也没有绝对路径要填：所有客户端都配同一条命令即可（Windows 上必须写 `npx.cmd`，客户端不经过 shell）：
+
+```json
+{ "mcpServers": { "logic-analyzer": {
+    "command": "npx.cmd",
+    "args": ["-y", "logic-agent-mcp"]
+} } }
+```
+
+下面的 `INSTALL-MCP.cmd`、以及 `D:/tools/logic-agent/...` 这类路径，只适用于便携 zip 包。
+
 ## 一条命令
 
 发布包（解压后双击即可，不需要 Python）：

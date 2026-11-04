@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+### Changed
+- `README.md` 以 npm 为唯一安装路径：删掉 zip 解压 + `INSTALL-MCP.cmd` + 按客户端手写绝对路径那一整节，只保留一句「没有 Node 时用 Releases 里的便携 zip」；新增驱动、`--backend mock`、数据目录和 PowerShell 执行策略的说明。
+- `docs/npm.md`、`packaging/npm/README.npm.md`：包体从「约 80 MB」更正为实测的约 35 MB 压缩 / 72 MB 解压（449 个文件）；排错表补上 `npm.ps1`/`npx.ps1` 被执行策略拦住的条目。
+- `docs/mcp-clients.md` 开头加 npm 一节，说明 `npx.cmd` 配置适用于 npm 包，`INSTALL-MCP.cmd` 与绝对路径只属于便携 zip 包。
+
 ## [1.2.1] - 2026-11-03
 
 ### Added

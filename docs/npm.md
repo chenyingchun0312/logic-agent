@@ -17,7 +17,7 @@ MCP 层只是编排。所以：
 - 不做 wheel：pip 装不了 MSYS2 构建出的 `dslab.exe` 和 DSView 固件/`res`，也无法保证
   `sigrok-cli` 的 Python 3.4 运行时。
 
-代价是包体：约 80 MB（压缩后），npm 单包解压上限 250 MB，够用。
+代价是包体：约 35 MB 压缩 / 72 MB 解压（449 个文件），npm 单包解压上限 250 MB，够用。
 
 ## 包内容
 
@@ -133,11 +133,12 @@ Actions -> sigrok runtime -> Run workflow
 | 现象 | 处理 |
 |---|---|
 | 客户端起不来，日志里是 `spawn npx ENOENT` | Windows 上 `command` 写 `npx.cmd`；或改成 `cmd /c npx -y logic-agent-mcp` |
+| PowerShell 报“因为在此系统上禁止运行脚本”，指向 `npm.ps1`/`npx.ps1` | 执行策略（默认 `RemoteSigned`）拦住了 npm 自带的未签名包装脚本；命令改用 `npm.cmd`/`npx.cmd`，或在当前用户范围放行：`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
 | 装到了旧版本 | `npx -y logic-agent-mcp@latest`（`npx` 有本地缓存） |
 | `EBADPLATFORM` | 包只在 `win32`/`x64` 上发布，macOS/Linux 会直接拒绝安装 |
 | `cannot start the Python server` + `python: python` | `runtime/python` 缺失（装包不完整），或 `LOGIC_AGENT_PYTHON` 指错了 |
-| 第一次启动卡几十秒 | 正常，在下载约 80 MB |
-| 能启动但采不到数据 | 驱动没装：装一次 DSView，或 `INSTALL-DRIVER.cmd`；设备是独占 USB，别让两个客户端同时开 |
+| 第一次启动卡几十秒 | 正常，首次要下载约 35 MB |
+| 能启动但采不到数据 | 驱动没装：装一次 DSView（或便携 zip 包里的 `INSTALL-DRIVER.cmd`）；设备是独占 USB，别让两个客户端同时开 |
 | `checksums` 报 MISMATCH | 用了被手工改过的包目录；重装，别改 `runtime/` |
 
 ## 许可证

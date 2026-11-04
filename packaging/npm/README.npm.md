@@ -82,7 +82,7 @@ npx -y logic-agent-mcp --backend mock
 | 项目 | 值 |
 |---|---|
 | 数据目录 | `%LOCALAPPDATA%\logic-agent`（采集存在 `captures\` 下） |
-| 首次启动 | npx 下载整包（约 80 MB），之后走 npm 缓存 |
+| 首次启动 | npx 下载整包（约 35 MB），之后走 npm 缓存 |
 | 网络 | 除了首次下载，运行时**不需要**网络 |
 | Node | ≥ 18.17 |
 | 平台 | Windows x64 |
